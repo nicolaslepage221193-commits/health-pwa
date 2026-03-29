@@ -26,6 +26,8 @@ function CalendarContent() {
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
   async function fetchData() {
+    if (!supabase) return;
+    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     

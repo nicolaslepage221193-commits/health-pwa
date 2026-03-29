@@ -18,6 +18,8 @@ export default function LibraryPage() {
   }, []);
 
   async function fetchData() {
+    if (!supabase) return;
+    
     const [tmplRes, libRes] = await Promise.all([
       supabase.from('workout_templates').select('*').order('name'),
       supabase.from('exercise_library').select('*').order('name')
@@ -36,7 +38,7 @@ export default function LibraryPage() {
   };
 
   const saveTemplate = async () => {
-    if (!newPlanName || selectedExercises.length === 0) return;
+    if (!newPlanName || selectedExercises.length === 0 || !supabase) return;
 
     const { error } = await supabase.from('workout_templates').insert([
       { 
@@ -56,7 +58,7 @@ export default function LibraryPage() {
   };
 
   const deleteTemplate = async (id: string) => {
-    if (confirm("Delete this routine?")) {
+    if (confirm("Delete this routine?") && supabase) {
       await supabase.from('workout_templates').delete().eq('id', id);
       fetchData();
     }
