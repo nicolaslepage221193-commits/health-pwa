@@ -17,6 +17,12 @@ export default function TestPage() {
   useEffect(() => {
     async function fetchExercises() {
       try {
+        if (!supabase) {
+          setError('Supabase client is not initialized');
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('exercise_library')
           .select('id, name, muscle')

@@ -31,6 +31,10 @@ function WorkoutContent() {
     async function init() {
       setIsLoading(true);
       try {
+        if (!supabase) {
+          console.error('Supabase client is not initialized');
+          return;
+        }
         const [libRes, tmplRes] = await Promise.all([
           supabase.from('exercise_library').select('*').order('name'),
           supabase.from('workout_templates').select('*').order('name')
@@ -77,6 +81,10 @@ function WorkoutContent() {
   };
 
   const saveFullWorkout = async () => {
+    if (!supabase) {
+      alert("Database connection error. Please refresh the page.");
+      return;
+    }
     setIsSaving(true);
     const { error } = await supabase.from('workouts').insert([
       { 
