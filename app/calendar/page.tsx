@@ -63,7 +63,7 @@ function CalendarContent() {
   };
 
   const handleSchedule = async (templateId: number) => {
-    if (!selectedDay) return;
+    if (!selectedDay || !supabase) return;
     setIsSyncing(true);
     
     // Format: YYYY-MM-DD
@@ -82,7 +82,7 @@ function CalendarContent() {
 
   const deletePlan = async (e: React.MouseEvent, planId: string) => {
     e.stopPropagation();
-    if (confirm("Remove this plan?")) {
+    if (confirm("Remove this plan?") && supabase) {
       const { error } = await supabase.from('planned_workouts').delete().eq('id', planId);
       if (!error) fetchData();
     }
