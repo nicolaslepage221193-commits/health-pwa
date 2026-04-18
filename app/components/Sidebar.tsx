@@ -103,7 +103,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
   return (
     <aside
-      onPointerLeave={() => {
+      onMouseLeave={() => {
         if (collapsedSubmenuOpen) {
           setCollapsedSubmenuOpen(false);
         }
