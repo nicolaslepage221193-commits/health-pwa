@@ -73,7 +73,26 @@ export default function LibraryPage() {
 
   const deleteTemplate = async (id: string) => {
     if (confirm("Delete this routine?") && supabase) {
-      await supabase.from('workout_templates').delete().eq('id', id);
+      const { error: unlinkError } = await supabase
+        .from('workouts')
+        .update({ template_id: null })
+        .eq('template_id', id);
+
+      if (unlinkError) {
+        alert(unlinkError.message);
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from('workout_templates')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        alert(deleteError.message);
+        return;
+      }
+
       fetchData();
     }
   };
@@ -121,10 +140,75 @@ export default function LibraryPage() {
   };
 
   const deleteExercise = async (id: string) => {
-    if (confirm("Delete this exercise?") && supabase) {
-      await supabase.from('exercise_library').delete().eq('id', id);
-      fetchData();
+    if (!supabase) return;
+    const client = supabase;
+
+    const targetExercise = library.find(ex => ex.id === id);
+    const targetName = targetExercise?.name;
+
+    const [tmplRes, workoutRes] = await Promise.all([
+      client.from('workout_templates').select('id, name, exercises'),
+      client.from('workouts').select('id, all_exercises')
+    ]);
+
+    if (tmplRes.error) {
+      alert(tmplRes.error.message);
+      return;
     }
+
+    if (workoutRes.error) {
+      alert(workoutRes.error.message);
+      return;
+    }
+
+    const templatesUsingExercise = (tmplRes.data || []).filter((tmpl: any) =>
+      Array.isArray(tmpl.exercises) && tmpl.exercises.some((ex: any) => ex.id === id || (targetName && ex.name === targetName))
+    );
+
+    const workoutsUsingExercise = (workoutRes.data || []).filter((workout: any) =>
+      Array.isArray(workout.all_exercises) && workout.all_exercises.some((ex: any) => ex.id === id || (targetName && ex.name === targetName))
+    );
+
+    const isUsed = templatesUsingExercise.length > 0 || workoutsUsingExercise.length > 0;
+
+    if (isUsed) {
+      const confirmed = confirm(
+        `This exercise is currently used in ${templatesUsingExercise.length} routine(s) and ${workoutsUsingExercise.length} logged workout(s). Delete anyway? It will be removed from routines, but kept in logged workouts.`
+      );
+      if (!confirmed) return;
+
+      const templateUpdates = templatesUsingExercise.map((tmpl: any) => {
+        const filteredExercises = (tmpl.exercises || []).filter(
+          (ex: any) => ex.id !== id && (!targetName || ex.name !== targetName)
+        );
+
+        return client
+          .from('workout_templates')
+          .update({ exercises: filteredExercises })
+          .eq('id', tmpl.id);
+      });
+
+      const updateResults = await Promise.all(templateUpdates);
+      const updateError = updateResults.find((res: any) => res.error)?.error;
+
+      if (updateError) {
+        alert(updateError.message);
+        return;
+      }
+    } else {
+      const confirmed = confirm("Delete this exercise?");
+      if (!confirmed) return;
+    }
+
+    const { error: deleteError } = await client.from('exercise_library').delete().eq('id', id);
+    if (deleteError) {
+      alert(deleteError.message);
+      return;
+    }
+
+    setSelectedExercises(prev => prev.filter(ex => ex.id !== id));
+    setEditingTemplateExercises(prev => prev.filter(ex => ex.id !== id));
+    fetchData();
   };
 
   const startEditTemplate = (template: any) => {
@@ -365,7 +449,7 @@ export default function LibraryPage() {
         {templates.length === 0 && (
           <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
             <Dumbbell className="mx-auto text-slate-100 mb-4" size={48} />
-            <p className="font-black text-slate-200 uppercase tracking-widest text-xs">No Routines Built Yet</p>
+            <p className="font-black text-slate-200 uppercase tracking-widest text-xs">No Workouts Found In Database</p>
           </div>
         )}
       </div>
