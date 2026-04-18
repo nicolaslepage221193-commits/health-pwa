@@ -110,7 +110,7 @@ function WorkoutContent() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto px-6 pb-40">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-32 sm:pb-40">
       
       {/* --- VIEW: TRAIN HUB --- */}
       {activeView === 'train' && (
@@ -167,7 +167,7 @@ function WorkoutContent() {
       {/* --- VIEW: EXECUTING SESSION --- */}
       {activeView === 'executing-plan' && (
         <div className="space-y-6 pt-12 animate-in slide-in-from-bottom-6">
-          <header className="flex justify-between items-center mb-10">
+          <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-10">
             <button 
               onClick={() => { 
                 if (confirm("Abort session? All unsaved progress will be cleared.")) {
@@ -178,11 +178,11 @@ function WorkoutContent() {
                   setCurrentSets([]);
                 }
               }} 
-              className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors"
+              className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors self-start md:self-auto"
               >
-              <ArrowLeft size={14} /> Abort
+              <ArrowLeft size={14} /> Cancel Workout
             </button>
-            <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter text-right">
+            <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter text-left md:text-right mt-4 md:mt-0">
               {activePlan?.name || "On the Fly"}
             </h1>
           </header>
@@ -225,33 +225,33 @@ function WorkoutContent() {
             </div>
           ) : (
             /* DATA ENTRY UI */
-            <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 animate-in zoom-in-95">
-               <button onClick={() => setSelectedEx(null)} className="text-blue-600 font-black mb-6 text-[10px] uppercase tracking-widest">← Back</button>
-               <h2 className="text-4xl font-black text-slate-900 mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20">{selectedEx.name}</h2>
+            <div className="bg-white p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 animate-in zoom-in-95 overflow-hidden">
+               <button onClick={() => setSelectedEx(null)} className="text-blue-600 font-black mb-4 sm:mb-6 text-[10px] uppercase tracking-widest">← Back</button>
+               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 mb-6 sm:mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20 break-words">{selectedEx.name}</h2>
                
-               <div className="flex gap-6 mb-12">
-                  <div className="flex-1">
+               <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
+                  <div className="min-w-0">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
-                    <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                    <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
-                  <div className="flex-1 border-l-2 pl-8">
+                  <div className="min-w-0 sm:border-l-2 sm:pl-8">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
-                    <input type="number" value={reps} onChange={e => setReps(e.target.value)} className="w-full text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                    <input type="number" value={reps} onChange={e => setReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
-                  <button onClick={addSet} className="bg-slate-900 text-white w-20 h-20 rounded-3xl flex items-center justify-center text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
+                  <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
                </div>
 
                <div className="space-y-3 mb-10">
                  {currentSets.map((s, idx) => (
-                   <div key={idx} className="flex justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                   <div key={idx} className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                      <span className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Set {idx + 1}</span>
-                     <span className="font-black italic text-slate-900">{s.weight}kg x {s.reps}</span>
+                     <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}kg x {s.reps}</span>
                    </div>
                  ))}
                </div>
 
                <div className="flex gap-4">
-                 <button onClick={finishExercise} className="flex-1 py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest italic active:scale-95 transition-all">Save Movement</button>
+                 <button onClick={finishExercise} className="flex-1 py-4 sm:py-6 bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] font-black uppercase tracking-widest italic active:scale-95 transition-all text-[11px] sm:text-base">Save Exercise</button>
                </div>
             </div>
           )}
