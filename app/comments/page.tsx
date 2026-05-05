@@ -4,15 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { Bug, MessageSquare, Sparkles, AlertTriangle, Send } from 'lucide-react';
 
-type EntryType = 'bug' | 'comment' | 'feature';
-type EntrySeverity = 'low' | 'medium' | 'high' | 'critical';
-type EntryStatus = 'open' | 'in_progress' | 'resolved';
+type EntryType = 'Bug' | 'Comment' | 'Feature';
+type EntrySeverity = 'Low' | 'Medium' | 'High' | 'Critical';
+type EntryStatus = 'Open' | 'In Progress' | 'Resolved';
 
 type FeedbackEntry = {
   id: string;
   title: string;
   description: string;
-  category: string;
   type: EntryType;
   severity: EntrySeverity;
   status: EntryStatus;
@@ -25,15 +24,22 @@ type StorageMode = 'supabase' | 'local';
 
 const LOCAL_KEY = 'healthapp_feedback_entries';
 
+const APP_PAGES = [
+  { label: 'Train', value: '/workout/train' },
+  { label: 'Library', value: '/workout/library' },
+  { label: 'History', value: '/history' },
+  { label: 'Calendar', value: '/calendar' },
+  { label: 'Comments', value: '/comments' },
+];
+
 const defaultForm = {
   title: '',
   description: '',
-  category: 'General',
-  type: 'comment' as EntryType,
-  severity: 'medium' as EntrySeverity,
-  status: 'open' as EntryStatus,
+  type: 'Comment' as EntryType,
+  severity: 'Medium' as EntrySeverity,
+  status: 'Open' as EntryStatus,
   author: '',
-  page_context: '',
+  page_context: '/comments',
 };
 
 export default function CommentsPage() {
@@ -48,15 +54,6 @@ export default function CommentsPage() {
     () => [...entries].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [entries],
   );
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setForm((prev) => ({
-        ...prev,
-        page_context: window.location.pathname,
-      }));
-    }
-  }, []);
 
   useEffect(() => {
     fetchEntries();
@@ -122,7 +119,6 @@ export default function CommentsPage() {
       id: crypto.randomUUID(),
       title: form.title.trim(),
       description: form.description.trim(),
-      category: form.category.trim() || 'General',
       type: form.type,
       severity: form.severity,
       status: form.status,
@@ -136,7 +132,6 @@ export default function CommentsPage() {
         {
           title: payload.title,
           description: payload.description,
-          category: payload.category,
           type: payload.type,
           severity: payload.severity,
           status: payload.status,
@@ -158,7 +153,6 @@ export default function CommentsPage() {
 
     setForm((prev) => ({
       ...defaultForm,
-      page_context: prev.page_context,
       author: prev.author,
     }));
     setSaving(false);
@@ -220,7 +214,7 @@ export default function CommentsPage() {
             className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold resize-y"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <select
               value={form.type}
               onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as EntryType }))}
@@ -230,13 +224,6 @@ export default function CommentsPage() {
               <option value="comment">Comment</option>
               <option value="feature">Feature</option>
             </select>
-
-            <input
-              value={form.category}
-              onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
-              placeholder="Category tag"
-              className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
-            />
 
             <select
               value={form.severity}
@@ -259,12 +246,15 @@ export default function CommentsPage() {
               <option value="resolved">Resolved</option>
             </select>
 
-            <input
+            <select
               value={form.page_context}
               onChange={(e) => setForm((prev) => ({ ...prev, page_context: e.target.value }))}
-              placeholder="Page context"
               className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
-            />
+            >
+              {APP_PAGES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
           </div>
 
           <button
@@ -292,9 +282,6 @@ export default function CommentsPage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 border border-blue-200">
                   {typeIcon(entry.type)}
                   {entry.type}
-                </span>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-700 border border-slate-200">
-                  {entry.category}
                 </span>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${severityColor(entry.severity)}`}>
                   {entry.severity}
