@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 import Link from 'next/link';
+import { Edit2, Trash2 } from 'lucide-react';
 
 type WorkoutSet = {
   weight: number;
@@ -235,17 +236,21 @@ export default function HistoryPage() {
                   <button
                     type="button"
                     onClick={() => startEditWorkout(workout)}
-                    className="px-3 py-1 rounded-full text-xs font-bold border border-slate-300 text-slate-700 hover:bg-slate-100"
+                    aria-label="Edit workout"
+                    title="Edit workout"
+                    className="p-2 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-100"
                   >
-                    Edit
+                    <Edit2 size={14} />
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteWorkout(workout.id)}
                     disabled={deletingWorkoutId === workout.id}
-                    className="px-3 py-1 rounded-full text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    aria-label="Delete workout"
+                    title="Delete workout"
+                    className="p-2 rounded-full border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
-                    {deletingWorkoutId === workout.id ? 'Deleting...' : 'Delete'}
+                    <Trash2 size={14} className={deletingWorkoutId === workout.id ? 'animate-pulse' : ''} />
                   </button>
                 </div>
               </div>
@@ -304,9 +309,11 @@ export default function HistoryPage() {
                     <button
                       type="button"
                       onClick={() => deleteExercise(exerciseIndex)}
-                      className="px-3 py-2 rounded-xl text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50"
+                      aria-label="Delete exercise"
+                      title="Delete exercise"
+                      className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
                     >
-                      Delete Exercise
+                      <Trash2 size={14} />
                     </button>
                   </div>
 
@@ -332,9 +339,11 @@ export default function HistoryPage() {
                         <button
                           type="button"
                           onClick={() => deleteSet(exerciseIndex, setIndex)}
-                          className="px-3 py-2 rounded-xl text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50"
+                          aria-label="Delete set"
+                          title="Delete set"
+                          className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
                         >
-                          Delete Set
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     ))}
