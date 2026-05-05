@@ -27,10 +27,32 @@ export default function HistoryPage() {
   const [editedExercises, setEditedExercises] = useState<WorkoutExercise[]>([]);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [focusedWorkoutId, setFocusedWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (loading || workouts.length === 0 || typeof window === 'undefined') return;
+
+    const hash = window.location.hash;
+    if (!hash.startsWith('#workout-')) return;
+
+    const workoutId = hash.replace('#workout-', '');
+    const target = document.getElementById(`workout-${workoutId}`);
+
+    if (!target) return;
+
+    setFocusedWorkoutId(workoutId);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const timeoutId = window.setTimeout(() => {
+      setFocusedWorkoutId((current) => (current === workoutId ? null : current));
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loading, workouts]);
 
   async function fetchHistory() {
     setLoading(true);
@@ -191,7 +213,11 @@ export default function HistoryPage() {
       ) : (
         <div className="space-y-6">
           {workouts.map((workout) => (
-            <div key={workout.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+            <div
+              key={workout.id}
+              id={`workout-${workout.id}`}
+              className={`bg-white rounded-3xl p-6 shadow-sm border transition-all scroll-mt-6 ${focusedWorkoutId === workout.id ? 'border-blue-500 ring-4 ring-blue-100' : 'border-slate-100'}`}
+            >
               {/* Session Header */}
               <div className="flex justify-between items-start mb-4">
                 <div>

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Clock, AlertCircle, Trash2, X, Plus } from 'lucide-react';
 import { supabase } from '../supabase';
 
 function CalendarContent() {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [history, setHistory] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
@@ -161,9 +163,17 @@ function CalendarContent() {
                 <div className="flex flex-col gap-1 overflow-hidden">
                   {/* EXECUTED (BLUE) */}
                   {dayHistory.map(h => (
-                    <div key={h.id} className="bg-blue-600 text-white px-1.5 py-0.5 rounded-md md:rounded-xl text-[7px] md:text-[9px] font-black uppercase italic truncate">
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/history#workout-${h.id}`);
+                      }}
+                      className="w-full text-left bg-blue-600 text-white px-1.5 py-0.5 rounded-md md:rounded-xl text-[7px] md:text-[9px] font-black uppercase italic truncate hover:bg-blue-700 transition-colors"
+                    >
                       {h.workout_templates?.name || "OTF"}
-                    </div>
+                    </button>
                   ))}
 
                   {/* PLANNED (ORANGE/GREY) */}
