@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
-import { Bug, MessageSquare, Sparkles, AlertTriangle, Send } from 'lucide-react';
+import { Bug, MessageSquare, Sparkles, AlertTriangle, Send, Edit2, Trash2, X } from 'lucide-react';
 
 type EntryType = 'Bug' | 'Comment' | 'Feature';
 type EntrySeverity = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -49,6 +49,8 @@ export default function CommentsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [storageMode, setStorageMode] = useState<StorageMode>('supabase');
+  const [editingEntry, setEditingEntry] = useState<FeedbackEntry | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sortedEntries = useMemo(
     () => [...entries].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
@@ -156,6 +158,58 @@ export default function CommentsPage() {
       author: prev.author,
     }));
     setSaving(false);
+  }
+
+  async function saveEdit() {
+    if (!editingEntry) return;
+    setSaving(true);
+    setError(null);
+
+    if (storageMode === 'supabase' && supabase) {
+      const { error: updateError } = await supabase
+        .from('feedback_entries')
+        .update({
+          title: editingEntry.title,
+          description: editingEntry.description,
+          type: editingEntry.type,
+          severity: editingEntry.severity,
+          status: editingEntry.status,
+          author: editingEntry.author,
+          page_context: editingEntry.page_context,
+        })
+        .eq('id', editingEntry.id);
+
+      if (updateError) {
+        setSaving(false);
+        setError(updateError.message);
+        return;
+      }
+      await fetchEntries();
+    } else {
+      saveLocalEntries(entries.map((e) => (e.id === editingEntry.id ? editingEntry : e)));
+    }
+
+    setEditingEntry(null);
+    setSaving(false);
+  }
+
+  async function deleteEntry(id: string) {
+    setDeletingId(id);
+    setError(null);
+
+    if (storageMode === 'supabase' && supabase) {
+      const { error: deleteError } = await supabase.from('feedback_entries').delete().eq('id', id);
+      if (deleteError) {
+        setDeletingId(null);
+        setError(deleteError.message);
+        return;
+      }
+      await fetchEntries();
+    } else {
+      saveLocalEntries(entries.filter((e) => e.id !== id));
+    }
+
+    setDeletingId(null);
   }
 
   const typeIcon = (type: EntryType) => {
@@ -289,6 +343,25 @@ export default function CommentsPage() {
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-200">
                   {entry.status.replace('_', ' ')}
                 </span>
+                <div className="ml-auto flex items-center gap-1">
+                  <button
+                    onClick={() => setEditingEntry(entry)}
+                    title="Edit entry"
+                    aria-label="Edit entry"
+                    className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => deleteEntry(entry.id)}
+                    disabled={deletingId === entry.id}
+                    title="Delete entry"
+                    aria-label="Delete entry"
+                    className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
 
               <h3 className="text-lg font-black text-slate-900 tracking-tight">{entry.title}</h3>
@@ -303,6 +376,100 @@ export default function CommentsPage() {
           ))
         )}
       </section>
+
+      {editingEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 sm:p-8 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Edit Entry</h2>
+              <button onClick={() => setEditingEntry(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                value={editingEntry.title}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, title: e.target.value }))}
+                placeholder="Title"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-900"
+              />
+              <input
+                value={editingEntry.author}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, author: e.target.value }))}
+                placeholder="Author"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-900"
+              />
+            </div>
+
+            <textarea
+              value={editingEntry.description}
+              onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, description: e.target.value }))}
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-900 resize-y"
+            />
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <select
+                value={editingEntry.type}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, type: e.target.value as EntryType }))}
+                className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
+              >
+                <option value="Bug">Bug</option>
+                <option value="Comment">Comment</option>
+                <option value="Feature">Feature</option>
+              </select>
+
+              <select
+                value={editingEntry.severity}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, severity: e.target.value as EntrySeverity }))}
+                className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+
+              <select
+                value={editingEntry.status}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, status: e.target.value as EntryStatus }))}
+                className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
+              >
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+
+              <select
+                value={editingEntry.page_context}
+                onChange={(e) => setEditingEntry((prev) => prev && ({ ...prev, page_context: e.target.value }))}
+                className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
+              >
+                {APP_PAGES.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={saveEdit}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white font-black uppercase tracking-wider text-xs hover:bg-blue-600 transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setEditingEntry(null)}
+                className="px-5 py-3 rounded-xl border border-slate-200 font-black uppercase tracking-wider text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
