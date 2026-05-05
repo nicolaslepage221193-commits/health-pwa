@@ -145,7 +145,7 @@ function CalendarContent() {
             const isToday = new Date().toDateString() === cellDate.toDateString();
             const isPast = cellDate < new Date(new Date().setHours(0,0,0,0));
 
-            const dayHistory = history.filter(h => h.created_at.startsWith(dateStr));
+            const dayHistory = history.filter(h => getLocalDateString(new Date(h.created_at)) === dateStr);
             const dayPlans = plans.filter(p => p.planned_date === dateStr);
 
             return (
