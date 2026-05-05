@@ -196,13 +196,13 @@ export default function CommentsPage() {
               value={form.title}
               onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="Title"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-900"
             />
             <input
               value={form.author}
               onChange={(e) => setForm((prev) => ({ ...prev, author: e.target.value }))}
               placeholder="Author"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-900"
             />
           </div>
 
@@ -211,14 +211,14 @@ export default function CommentsPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
             placeholder="Describe the bug, comment, or idea..."
             rows={4}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold resize-y"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold resize-y text-slate-900"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <select
               value={form.type}
               onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as EntryType }))}
-              className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
+              className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
               <option value="bug">Bug</option>
               <option value="comment">Comment</option>
@@ -228,7 +228,7 @@ export default function CommentsPage() {
             <select
               value={form.severity}
               onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value as EntrySeverity }))}
-              className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
+              className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
               <option value="low">Low Severity</option>
               <option value="medium">Medium Severity</option>
@@ -239,7 +239,7 @@ export default function CommentsPage() {
             <select
               value={form.status}
               onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as EntryStatus }))}
-              className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
+              className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
@@ -249,7 +249,7 @@ export default function CommentsPage() {
             <select
               value={form.page_context}
               onChange={(e) => setForm((prev) => ({ ...prev, page_context: e.target.value }))}
-              className="rounded-xl border border-slate-200 px-3 py-3 font-bold"
+              className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
               {APP_PAGES.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
