@@ -6,6 +6,16 @@ import { supabase } from '../../supabase';
 import { Play, CheckCircle2, Activity, Zap, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useWorkout } from '../../context/WorkoutContext';
 
+type LoggedSet = {
+  weight: number;
+  reps: number;
+};
+
+type ExerciseHistoryEntry = {
+  created_at: string;
+  sets: LoggedSet[];
+};
+
 function WorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,6 +29,8 @@ function WorkoutContent() {
   // --- DATA STATE ---
   const [library, setLibrary] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryEntry[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   // --- LOCAL INPUT STATE (not synced until important events) ---
   const [localWeight, setLocalWeight] = useState('');
@@ -115,6 +127,12 @@ function WorkoutContent() {
   }, [searchParams, session, createSession]);
 
   // 2. Workout Logic
+  const openExercise = (exercise: any) => {
+    setLocalWeight('');
+    setLocalReps('');
+    updateSession({ selectedEx: exercise });
+  };
+
   const startOnTheFly = () => {
     createSession(null);
     setLocalWeight('');
@@ -178,6 +196,54 @@ function WorkoutContent() {
       setActiveView('train');
     }
   };
+
+  useEffect(() => {
+    async function loadExerciseHistory() {
+      if (!session?.selectedEx?.name || !supabase) {
+        setExerciseHistory([]);
+        return;
+      }
+
+      setIsHistoryLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('workouts')
+          .select('created_at, all_exercises')
+          .order('created_at', { ascending: false })
+          .limit(60);
+
+        if (error) {
+          console.error('Failed to load exercise history:', error.message);
+          setExerciseHistory([]);
+          return;
+        }
+
+        const targetName = session.selectedEx.name.toLowerCase();
+        const history = (data || [])
+          .map((workout: any) => {
+            const exercises = Array.isArray(workout?.all_exercises) ? workout.all_exercises : [];
+            const match = exercises.find((ex: any) => typeof ex?.name === 'string' && ex.name.toLowerCase() === targetName);
+
+            if (!match || !Array.isArray(match.sets)) return null;
+
+            return {
+              created_at: workout.created_at,
+              sets: match.sets
+                .filter((set: any) => typeof set?.weight === 'number' && typeof set?.reps === 'number')
+                .map((set: any) => ({ weight: set.weight, reps: set.reps })),
+            };
+          })
+          .filter((entry: ExerciseHistoryEntry | null) => entry !== null && entry.sets.length > 0)
+          .slice(0, 3) as ExerciseHistoryEntry[];
+
+        setExerciseHistory(history);
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    }
+
+    loadExerciseHistory();
+  }, [session?.selectedEx?.name]);
 
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -271,7 +337,7 @@ function WorkoutContent() {
 
               {/* Exercises suggested by template */}
               {session.activePlan?.exercises.filter((ex: any) => !session.sessionExercises.some(s => s.name === ex.name)).map((ex: any, i: number) => (
-                <button key={i} onClick={() => updateSession({ selectedEx: ex })} className="w-full flex items-center p-6 rounded-[2.5rem] border-2 bg-white border-slate-50 hover:border-blue-600 transition-all text-left group">
+                <button key={i} onClick={() => openExercise(ex)} className="w-full flex items-center p-6 rounded-[2.5rem] border-2 bg-white border-slate-50 hover:border-blue-600 transition-all text-left group">
                    <div className="w-10 h-10 rounded-xl mr-4 flex items-center justify-center font-black bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors uppercase italic text-[10px]">Next</div>
                    <div className="flex-1">
                     <p className="font-black text-slate-800 text-lg italic uppercase">{ex.name}</p>
@@ -285,7 +351,7 @@ function WorkoutContent() {
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4 px-2 italic">Add Any Movement</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {library.map(ex => (
-                    <button key={ex.id} onClick={() => updateSession({ selectedEx: ex })} className="p-4 bg-white border border-slate-100 hover:border-blue-200 rounded-2xl text-left shadow-sm">
+                    <button key={ex.id} onClick={() => openExercise(ex)} className="p-4 bg-white border border-slate-100 hover:border-blue-200 rounded-2xl text-left shadow-sm">
                       <p className="font-black text-slate-600 text-[11px] uppercase italic truncate">{ex.name}</p>
                     </button>
                   ))}
@@ -297,6 +363,41 @@ function WorkoutContent() {
             <div className="bg-white p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 animate-in zoom-in-95 overflow-hidden">
                <button onClick={() => updateSession({ selectedEx: null })} className="text-blue-600 font-black mb-4 sm:mb-6 text-[10px] uppercase tracking-widest">← Back</button>
                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 mb-6 sm:mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20 break-words">{session.selectedEx.name}</h2>
+
+               <div className="mb-8 sm:mb-10">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Last 3 Workouts</p>
+                 {isHistoryLoading && (
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Loading history...</p>
+                 )}
+
+                 {!isHistoryLoading && exerciseHistory.length === 0 && (
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No previous sets recorded.</p>
+                 )}
+
+                 {!isHistoryLoading && exerciseHistory.length > 0 && (
+                   <div className="space-y-3">
+                     {exerciseHistory.map((entry, entryIdx) => (
+                       <div key={`${entry.created_at}-${entryIdx}`} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                         <div className="flex items-center justify-between gap-3">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                             {new Date(entry.created_at).toLocaleDateString()}
+                           </span>
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                             {entry.sets.length} Sets
+                           </span>
+                         </div>
+                         <div className="mt-3 flex flex-wrap gap-2">
+                           {entry.sets.map((set, setIdx) => (
+                             <span key={`${entryIdx}-${setIdx}`} className="rounded-xl bg-white px-3 py-1 text-[11px] font-black italic text-slate-700 border border-slate-100">
+                               {set.weight}kg x {set.reps}
+                             </span>
+                           ))}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+               </div>
                
                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
                   <div className="min-w-0">
