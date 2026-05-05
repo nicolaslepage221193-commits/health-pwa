@@ -55,7 +55,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
       hasSubmenu: true,
       subItems: [
         { name: 'Train', icon: <Play size={14} />, href: '/workout/train' },
-        { name: 'Workout Plans', icon: <ClipboardList size={14} />, href: '/workout/library' },
+        { name: 'LIBRARY', icon: <ClipboardList size={14} />, href: '/workout/library' },
       ],
     },
     { name: 'History', icon: <CalendarIcon size={20} />, href: '/history' },
