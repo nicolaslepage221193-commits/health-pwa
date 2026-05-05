@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { Bug, MessageSquare, Sparkles, AlertTriangle, Send, Edit2, Trash2, X } from 'lucide-react';
 
-type EntryType = 'Bug' | 'Comment' | 'Feature';
-type EntrySeverity = 'Low' | 'Medium' | 'High' | 'Critical';
-type EntryStatus = 'Open' | 'In Progress' | 'Resolved';
+type EntryType = '' | 'Bug' | 'Comment' | 'Feature';
+type EntrySeverity = '' | 'Low' | 'Medium' | 'High' | 'Critical';
+type EntryStatus = '' | 'Open' | 'In Progress' | 'Resolved';
 
 type FeedbackEntry = {
   id: string;
@@ -35,11 +35,11 @@ const APP_PAGES = [
 const defaultForm = {
   title: '',
   description: '',
-  type: 'Comment' as EntryType,
-  severity: 'Medium' as EntrySeverity,
-  status: 'Open' as EntryStatus,
+  type: '' as EntryType,
+  severity: '' as EntrySeverity,
+  status: '' as EntryStatus,
   author: '',
-  page_context: '/comments',
+  page_context: '',
 };
 
 export default function CommentsPage() {
@@ -274,9 +274,10 @@ export default function CommentsPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as EntryType }))}
               className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
-              <option value="bug">Bug</option>
-              <option value="comment">Comment</option>
-              <option value="feature">Feature</option>
+              <option value="" disabled>Type</option>
+              <option value="Bug">Bug</option>
+              <option value="Comment">Comment</option>
+              <option value="Feature">Feature</option>
             </select>
 
             <select
@@ -284,10 +285,11 @@ export default function CommentsPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, severity: e.target.value as EntrySeverity }))}
               className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
-              <option value="low">Low Severity</option>
-              <option value="medium">Medium Severity</option>
-              <option value="high">High Severity</option>
-              <option value="critical">Critical Severity</option>
+              <option value="" disabled>Severity</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
             </select>
 
             <select
@@ -295,9 +297,10 @@ export default function CommentsPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as EntryStatus }))}
               className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
+              <option value="" disabled>Status</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
             </select>
 
             <select
@@ -305,6 +308,7 @@ export default function CommentsPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, page_context: e.target.value }))}
               className="rounded-xl border border-slate-200 px-3 py-3 font-bold text-slate-900"
             >
+              <option value="" disabled>Page</option>
               {APP_PAGES.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
               ))}
