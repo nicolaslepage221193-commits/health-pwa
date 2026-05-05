@@ -363,8 +363,33 @@ function WorkoutContent() {
             <div className="bg-white p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 animate-in zoom-in-95 overflow-hidden">
                <button onClick={() => updateSession({ selectedEx: null })} className="text-blue-600 font-black mb-4 sm:mb-6 text-[10px] uppercase tracking-widest">← Back</button>
                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 mb-6 sm:mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20 break-words">{session.selectedEx.name}</h2>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
+                     <input type="number" value={localWeight} onChange={e => setLocalWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                  </div>
+                  <div className="min-w-0 sm:border-l-2 sm:pl-8">
+                    <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
+                     <input type="number" value={localReps} onChange={e => setLocalReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                  </div>
+                  <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
+               </div>
 
-               <div className="mb-8 sm:mb-10">
+               <div className="space-y-3 mb-10">
+                 {session.currentSets.map((s, idx) => (
+                   <div key={idx} className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                     <span className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Set {idx + 1}</span>
+                     <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}kg x {s.reps}</span>
+                   </div>
+                 ))}
+               </div>
+
+               <div className="flex gap-4">
+                 <button onClick={finishExercise} className="flex-1 py-4 sm:py-6 bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] font-black uppercase tracking-widest italic active:scale-95 transition-all text-[11px] sm:text-base">Save Exercise</button>
+               </div>
+
+               <div className="mt-8 sm:mt-10">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Last 3 Workouts</p>
                  {isHistoryLoading && (
                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Loading history...</p>
@@ -397,31 +422,6 @@ function WorkoutContent() {
                      ))}
                    </div>
                  )}
-               </div>
-               
-               <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
-                  <div className="min-w-0">
-                    <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
-                     <input type="number" value={localWeight} onChange={e => setLocalWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
-                  </div>
-                  <div className="min-w-0 sm:border-l-2 sm:pl-8">
-                    <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
-                     <input type="number" value={localReps} onChange={e => setLocalReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
-                  </div>
-                  <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
-               </div>
-
-               <div className="space-y-3 mb-10">
-                 {session.currentSets.map((s, idx) => (
-                   <div key={idx} className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                     <span className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Set {idx + 1}</span>
-                     <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}kg x {s.reps}</span>
-                   </div>
-                 ))}
-               </div>
-
-               <div className="flex gap-4">
-                 <button onClick={finishExercise} className="flex-1 py-4 sm:py-6 bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] font-black uppercase tracking-widest italic active:scale-95 transition-all text-[11px] sm:text-base">Save Exercise</button>
                </div>
             </div>
           )}
