@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Play,
-  Shovel,
+  MessageSquare,
   ClipboardList,
 } from 'lucide-react';
 
@@ -63,7 +63,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
     { name: 'Medication', icon: <Pill size={20} />, href: '#' },
     { name: 'Calendar', icon: <CalendarCheck size={20} />, href: '/calendar' },
     { name: 'Profile', icon: <UserCircle size={20} />, href: '#' },
-    { name: 'Test', icon: <Shovel size={20} />, href: '/test' },
+    { name: 'COMMENTS', icon: <MessageSquare size={20} />, href: '/comments' },
   ];
 
   useEffect(() => {
