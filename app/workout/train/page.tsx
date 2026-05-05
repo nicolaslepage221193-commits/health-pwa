@@ -20,6 +20,10 @@ function WorkoutContent() {
   const [library, setLibrary] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
 
+  // --- LOCAL INPUT STATE (not synced until important events) ---
+  const [localWeight, setLocalWeight] = useState('');
+  const [localReps, setLocalReps] = useState('');
+
   // Auto-save draft workout when navigating away
   const saveDraftWorkout = useCallback(async () => {
     if (!session || session.sessionExercises.length === 0 || session.isDraft) return;
@@ -113,13 +117,17 @@ function WorkoutContent() {
   // 2. Workout Logic
   const startOnTheFly = () => {
     createSession(null);
+    setLocalWeight('');
+    setLocalReps('');
     setActiveView('executing-plan');
   };
 
   const addSet = () => {
-    if (!session || !session.weight || !session.reps) return;
-    const newSets = [...session.currentSets, { weight: Number(session.weight), reps: Number(session.reps) }];
-    updateSession({ currentSets: newSets, weight: '', reps: '' });
+    if (!localWeight || !localReps) return;
+    const newSets = [...session!.currentSets, { weight: Number(localWeight), reps: Number(localReps) }];
+    updateSession({ currentSets: newSets });
+    setLocalWeight('');
+    setLocalReps('');
   };
 
   const finishExercise = () => {
@@ -133,6 +141,8 @@ function WorkoutContent() {
       selectedEx: null, 
       currentSets: [] 
     });
+    setLocalWeight('');
+    setLocalReps('');
   };
 
   const saveFullWorkout = async () => {
@@ -213,7 +223,7 @@ function WorkoutContent() {
                 {templates.map(plan => (
                   <button 
                     key={plan.id} 
-                    onClick={() => { createSession(plan); setActiveView('executing-plan'); }} 
+                     onClick={() => { createSession(plan); setLocalWeight(''); setLocalReps(''); setActiveView('executing-plan'); }} 
                     className="group p-8 bg-white rounded-[2.5rem] border border-slate-100 hover:ring-1 hover:ring-blue-500/60 text-left transition-all shadow-sm flex justify-between items-center"
                   >
                     <div>
@@ -291,11 +301,11 @@ function WorkoutContent() {
                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
                   <div className="min-w-0">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
-                    <input type="number" value={session.weight} onChange={e => updateSession({ weight: e.target.value })} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                     <input type="number" value={localWeight} onChange={e => setLocalWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <div className="min-w-0 sm:border-l-2 sm:pl-8">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
-                    <input type="number" value={session.reps} onChange={e => updateSession({ reps: e.target.value })} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                     <input type="number" value={localReps} onChange={e => setLocalReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
                </div>

@@ -18,8 +18,6 @@ export interface WorkoutSession {
   selectedEx: any | null;
   sessionExercises: SessionExercise[];
   currentSets: Set[];
-  weight: string;
-  reps: string;
   customDate: string;
   isDraft: boolean; // true = saved as draft to DB, false = only in memory
 }
@@ -76,8 +74,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       selectedEx: null,
       sessionExercises: [],
       currentSets: [],
-      weight: '',
-      reps: '',
       customDate: new Date().toISOString().split('T')[0],
       isDraft: false,
     };
