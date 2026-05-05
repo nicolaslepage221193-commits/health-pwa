@@ -380,7 +380,7 @@ function WorkoutContent() {
                  {session.currentSets.map((s, idx) => (
                    <div key={idx} className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                      <span className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Set {idx + 1}</span>
-                     <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}kg x {s.reps}</span>
+                     <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}lbs x {s.reps}</span>
                    </div>
                  ))}
                </div>
@@ -414,7 +414,7 @@ function WorkoutContent() {
                          <div className="mt-3 flex flex-wrap gap-2">
                            {entry.sets.map((set, setIdx) => (
                              <span key={`${entryIdx}-${setIdx}`} className="rounded-xl bg-white px-3 py-1 text-[11px] font-black italic text-slate-700 border border-slate-100">
-                               {set.weight}kg x {set.reps}
+                               {set.weight}lbs x {set.reps}
                              </span>
                            ))}
                          </div>
