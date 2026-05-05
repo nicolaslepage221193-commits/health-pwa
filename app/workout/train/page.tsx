@@ -142,7 +142,13 @@ function WorkoutContent() {
 
   const addSet = () => {
     if (!localWeight || !localReps) return;
-    const newSets = [...session!.currentSets, { weight: Number(localWeight), reps: Number(localReps) }];
+    const parsedWeight = Number(localWeight);
+    const parsedReps = Number(localReps);
+
+    if (!Number.isFinite(parsedWeight) || !Number.isFinite(parsedReps)) return;
+    if (parsedWeight < 0 || parsedReps < 0) return;
+
+    const newSets = [...session!.currentSets, { weight: parsedWeight, reps: parsedReps }];
     updateSession({ currentSets: newSets });
     setLocalWeight('');
     setLocalReps('');
@@ -367,11 +373,11 @@ function WorkoutContent() {
                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
                   <div className="min-w-0">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
-                     <input type="number" value={localWeight} onChange={e => setLocalWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                      <input type="number" min="0" value={localWeight} onChange={e => setLocalWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <div className="min-w-0 sm:border-l-2 sm:pl-8">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
-                     <input type="number" value={localReps} onChange={e => setLocalReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                      <input type="number" min="0" value={localReps} onChange={e => setLocalReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
                </div>

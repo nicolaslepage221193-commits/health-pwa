@@ -109,7 +109,7 @@ export default function HistoryPage() {
 
   function updateSet(exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', rawValue: string) {
     const parsed = Number(rawValue);
-    const value = Number.isFinite(parsed) ? parsed : 0;
+    const value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 
     setEditedExercises((prev) => prev.map((exercise, idx) => {
       if (idx !== exerciseIndex) return exercise;
@@ -131,7 +131,10 @@ export default function HistoryPage() {
         name: exercise.name.trim() || 'Exercise',
         sets: exercise.sets
           .filter((set) => Number.isFinite(set.weight) && Number.isFinite(set.reps))
-          .map((set) => ({ weight: Number(set.weight), reps: Number(set.reps) })),
+          .map((set) => ({
+            weight: Math.max(0, Number(set.weight)),
+            reps: Math.max(0, Number(set.reps)),
+          })),
       }))
       .filter((exercise) => exercise.sets.length > 0);
 
@@ -286,6 +289,7 @@ export default function HistoryPage() {
                       <div key={setIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                         <input
                           type="number"
+                          min="0"
                           value={set.weight}
                           onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', e.target.value)}
                           className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold"
@@ -293,6 +297,7 @@ export default function HistoryPage() {
                         />
                         <input
                           type="number"
+                          min="0"
                           value={set.reps}
                           onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', e.target.value)}
                           className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold"
