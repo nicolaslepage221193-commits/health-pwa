@@ -159,15 +159,15 @@ export default function CommentsPage() {
   }
 
   const typeIcon = (type: EntryType) => {
-    if (type === 'bug') return <Bug size={14} />;
-    if (type === 'feature') return <Sparkles size={14} />;
+    if (type === 'Bug') return <Bug size={14} />;
+    if (type === 'Feature') return <Sparkles size={14} />;
     return <MessageSquare size={14} />;
   };
 
   const severityColor = (severity: EntrySeverity) => {
-    if (severity === 'critical') return 'bg-red-100 text-red-700 border-red-200';
-    if (severity === 'high') return 'bg-orange-100 text-orange-700 border-orange-200';
-    if (severity === 'medium') return 'bg-amber-100 text-amber-700 border-amber-200';
+    if (severity === 'Critical') return 'bg-red-100 text-red-700 border-red-200';
+    if (severity === 'High') return 'bg-orange-100 text-orange-700 border-orange-200';
+    if (severity === 'Medium') return 'bg-amber-100 text-amber-700 border-amber-200';
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
