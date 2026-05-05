@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../supabase';
-import { Play, Plus, CheckCircle2, Activity, Zap, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Play, CheckCircle2, Activity, Zap, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { useWorkout } from '../../context/WorkoutContext';
 
 function WorkoutContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { session, createSession, updateSession, clearSession } = useWorkout();
   
   // --- UI & LOADING STATE ---
   const [activeView, setActiveView] = useState('train');
@@ -16,15 +19,58 @@ function WorkoutContent() {
   // --- DATA STATE ---
   const [library, setLibrary] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
-  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // --- ACTIVE SESSION STATE ---
-  const [activePlan, setActivePlan] = useState<any | null>(null);
-  const [selectedEx, setSelectedEx] = useState<any | null>(null);
-  const [sessionExercises, setSessionExercises] = useState<any[]>([]);
-  const [currentSets, setCurrentSets] = useState<any[]>([]);
-  const [weight, setWeight] = useState('');
-  const [reps, setReps] = useState('');
+  // Auto-save draft workout when navigating away
+  const saveDraftWorkout = useCallback(async () => {
+    if (!session || session.sessionExercises.length === 0 || session.isDraft) return;
+    
+    try {
+      if (!supabase) {
+        console.error('Supabase client is not initialized');
+        return;
+      }
+
+      const { error } = await supabase.from('workouts').insert([
+        {
+          all_exercises: session.sessionExercises,
+          created_at: new Date(session.customDate).toISOString(),
+          template_id: session.activePlan?.id || null,
+          is_draft: true, // Mark as draft
+        }
+      ]);
+
+      if (!error) {
+        updateSession({ isDraft: true });
+        console.log('Workout saved as draft');
+      } else {
+        console.error('Error saving draft:', error);
+      }
+    } catch (error) {
+      console.error('Error in saveDraftWorkout:', error);
+    }
+  }, [session, updateSession]);
+
+  // Save draft before page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (session && session.sessionExercises.length > 0 && !session.isDraft) {
+        // This will be async, so it may not complete before unload
+        saveDraftWorkout();
+      }
+    };
+
+    const handleRouteChange = async () => {
+      if (session && session.sessionExercises.length > 0 && !session.isDraft) {
+        await saveDraftWorkout();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [session, saveDraftWorkout]);
 
   // 1. Fetch Data & Handle Deep Links from Calendar
   useEffect(() => {
@@ -43,13 +89,18 @@ function WorkoutContent() {
         if (libRes.data) setLibrary(libRes.data);
         if (tmplRes.data) setTemplates(tmplRes.data);
 
-        // Auto-start if redirected from a specific calendar plan
-        const autoId = searchParams.get('templateId');
-        if (autoId && tmplRes.data) {
-          const target = tmplRes.data.find(t => t.id.toString() === autoId);
-          if (target) {
-            setActivePlan(target);
-            setActiveView('executing-plan');
+        // Restore session from context
+        if (session) {
+          setActiveView('executing-plan');
+        } else {
+          // Auto-start if redirected from a specific calendar plan
+          const autoId = searchParams.get('templateId');
+          if (autoId && tmplRes.data) {
+            const target = tmplRes.data.find(t => t.id.toString() === autoId);
+            if (target) {
+              createSession(target);
+              setActiveView('executing-plan');
+            }
           }
         }
       } finally {
@@ -57,48 +108,64 @@ function WorkoutContent() {
       }
     }
     init();
-  }, [searchParams]);
+  }, [searchParams, session, createSession]);
 
   // 2. Workout Logic
   const startOnTheFly = () => {
-    setActivePlan(null);
-    setSessionExercises([]);
+    createSession(null);
     setActiveView('executing-plan');
   };
 
   const addSet = () => {
-    if (!weight || !reps) return;
-    setCurrentSets([...currentSets, { weight: Number(weight), reps: Number(reps) }]);
-    setWeight(''); 
-    setReps('');
+    if (!session || !session.weight || !session.reps) return;
+    const newSets = [...session.currentSets, { weight: Number(session.weight), reps: Number(session.reps) }];
+    updateSession({ currentSets: newSets, weight: '', reps: '' });
   };
 
   const finishExercise = () => {
-    if (currentSets.length === 0) return;
-    setSessionExercises([...sessionExercises, { name: selectedEx.name, sets: currentSets }]);
-    setSelectedEx(null);
-    setCurrentSets([]);
+    if (!session || session.currentSets.length === 0 || !session.selectedEx) return;
+    const newSessionExercises = [
+      ...session.sessionExercises,
+      { name: session.selectedEx.name, sets: session.currentSets }
+    ];
+    updateSession({ 
+      sessionExercises: newSessionExercises,
+      selectedEx: null, 
+      currentSets: [] 
+    });
   };
 
   const saveFullWorkout = async () => {
-    if (!supabase) {
+    if (!session || !supabase) {
       alert("Database connection error. Please refresh the page.");
       return;
     }
     setIsSaving(true);
     const { error } = await supabase.from('workouts').insert([
       { 
-        all_exercises: sessionExercises,
-        created_at: new Date(customDate).toISOString(),
-        template_id: activePlan?.id || null // This link is vital for the Calendar logic
+        all_exercises: session.sessionExercises,
+        created_at: new Date(session.customDate).toISOString(),
+        template_id: session.activePlan?.id || null,
+        is_draft: false, // Final workout
       }
     ]);
 
     if (!error) {
-      window.location.href = '/calendar';
+      clearSession();
+      router.push('/calendar');
     } else {
       alert("Error: " + error.message);
       setIsSaving(false);
+    }
+  };
+
+  const abortSession = () => {
+    if (confirm("Abort session? Unsaved progress will be saved as a draft.")) {
+      if (session && session.sessionExercises.length > 0 && !session.isDraft) {
+        saveDraftWorkout();
+      }
+      clearSession();
+      setActiveView('train');
     }
   };
 
@@ -146,7 +213,7 @@ function WorkoutContent() {
                 {templates.map(plan => (
                   <button 
                     key={plan.id} 
-                    onClick={() => { setActivePlan(plan); setActiveView('executing-plan'); }} 
+                    onClick={() => { createSession(plan); setActiveView('executing-plan'); }} 
                     className="group p-8 bg-white rounded-[2.5rem] border border-slate-100 hover:ring-1 hover:ring-blue-500/60 text-left transition-all shadow-sm flex justify-between items-center"
                   >
                     <div>
@@ -165,32 +232,24 @@ function WorkoutContent() {
       )}
 
       {/* --- VIEW: EXECUTING SESSION --- */}
-      {activeView === 'executing-plan' && (
+      {activeView === 'executing-plan' && session && (
         <div className="space-y-6 pt-12 animate-in slide-in-from-bottom-6">
           <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-10">
             <button 
-              onClick={() => { 
-                if (confirm("Abort session? All unsaved progress will be cleared.")) {
-                  setActiveView('train'); 
-                  setActivePlan(null); 
-                  setSessionExercises([]);
-                  setSelectedEx(null);
-                  setCurrentSets([]);
-                }
-              }} 
+              onClick={abortSession}
               className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors self-start md:self-auto"
               >
               <ArrowLeft size={14} /> Cancel Workout
             </button>
             <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter text-left md:text-right mt-4 md:mt-0">
-              {activePlan?.name || "On the Fly"}
+              {session.activePlan?.name || "On the Fly"}
             </h1>
           </header>
 
-          {!selectedEx ? (
+          {!session.selectedEx ? (
             <div className="space-y-4">
               {/* History of current session */}
-              {sessionExercises.map((logged, i) => (
+              {session.sessionExercises.map((logged, i) => (
                 <div key={i} className="flex items-center p-6 rounded-[2.5rem] bg-slate-900 text-white">
                   <CheckCircle2 className="text-blue-400 mr-4" size={24} />
                   <div className="flex-1">
@@ -201,8 +260,8 @@ function WorkoutContent() {
               ))}
 
               {/* Exercises suggested by template */}
-              {activePlan?.exercises.filter((ex: any) => !sessionExercises.some(s => s.name === ex.name)).map((ex: any, i: number) => (
-                <button key={i} onClick={() => setSelectedEx(ex)} className="w-full flex items-center p-6 rounded-[2.5rem] border-2 bg-white border-slate-50 hover:border-blue-600 transition-all text-left group">
+              {session.activePlan?.exercises.filter((ex: any) => !session.sessionExercises.some(s => s.name === ex.name)).map((ex: any, i: number) => (
+                <button key={i} onClick={() => updateSession({ selectedEx: ex })} className="w-full flex items-center p-6 rounded-[2.5rem] border-2 bg-white border-slate-50 hover:border-blue-600 transition-all text-left group">
                    <div className="w-10 h-10 rounded-xl mr-4 flex items-center justify-center font-black bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors uppercase italic text-[10px]">Next</div>
                    <div className="flex-1">
                     <p className="font-black text-slate-800 text-lg italic uppercase">{ex.name}</p>
@@ -216,7 +275,7 @@ function WorkoutContent() {
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4 px-2 italic">Add Any Movement</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {library.map(ex => (
-                    <button key={ex.id} onClick={() => setSelectedEx(ex)} className="p-4 bg-white border border-slate-100 hover:border-blue-200 rounded-2xl text-left shadow-sm">
+                    <button key={ex.id} onClick={() => updateSession({ selectedEx: ex })} className="p-4 bg-white border border-slate-100 hover:border-blue-200 rounded-2xl text-left shadow-sm">
                       <p className="font-black text-slate-600 text-[11px] uppercase italic truncate">{ex.name}</p>
                     </button>
                   ))}
@@ -226,23 +285,23 @@ function WorkoutContent() {
           ) : (
             /* DATA ENTRY UI */
             <div className="bg-white p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-slate-100 animate-in zoom-in-95 overflow-hidden">
-               <button onClick={() => setSelectedEx(null)} className="text-blue-600 font-black mb-4 sm:mb-6 text-[10px] uppercase tracking-widest">← Back</button>
-               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 mb-6 sm:mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20 break-words">{selectedEx.name}</h2>
+               <button onClick={() => updateSession({ selectedEx: null })} className="text-blue-600 font-black mb-4 sm:mb-6 text-[10px] uppercase tracking-widest">← Back</button>
+               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 mb-6 sm:mb-10 italic uppercase tracking-tighter underline underline-offset-6 decoration-slate-700/20 break-words">{session.selectedEx.name}</h2>
                
                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 sm:gap-6 mb-8 sm:mb-12 items-end">
                   <div className="min-w-0">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Weight (lbs)</label>
-                    <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                    <input type="number" value={session.weight} onChange={e => updateSession({ weight: e.target.value })} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <div className="min-w-0 sm:border-l-2 sm:pl-8">
                     <label className="text-[10px] font-black text-slate-700 uppercase block mb-2 tracking-widest">Reps</label>
-                    <input type="number" value={reps} onChange={e => setReps(e.target.value)} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
+                    <input type="number" value={session.reps} onChange={e => updateSession({ reps: e.target.value })} className="w-full text-4xl sm:text-5xl font-black border-b-4 border-slate-100 focus:border-blue-600 outline-none pb-2" placeholder="0" />
                   </div>
                   <button onClick={addSet} className="bg-slate-900 text-white w-full sm:w-20 h-14 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-3xl shadow-xl active:scale-90 transition-transform">✓</button>
                </div>
 
                <div className="space-y-3 mb-10">
-                 {currentSets.map((s, idx) => (
+                 {session.currentSets.map((s, idx) => (
                    <div key={idx} className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                      <span className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Set {idx + 1}</span>
                      <span className="font-black italic text-slate-900 text-right text-sm sm:text-base">{s.weight}kg x {s.reps}</span>
@@ -259,7 +318,7 @@ function WorkoutContent() {
       )}
 
       {/* --- FINISH WORKOUT OVERLAY --- */}
-      {sessionExercises.length > 0 && !selectedEx && (
+      {session && session.sessionExercises.length > 0 && !session.selectedEx && (
         <div className="fixed bottom-8 left-0 w-full z-50 ">
           <div className="max-w-4xl mx-auto px-6 justify-between">
             <div className="bg-slate-900 text-white p-6 rounded-[3rem] shadow-2xl flex items-center justify-between border border-slate-800">
@@ -268,15 +327,15 @@ function WorkoutContent() {
                   <label className="text-[8px] font-black text-slate-500 uppercase block mb-1">Workout Date</label>
                   <input 
                     type="date" 
-                    value={customDate} 
-                    onChange={e => setCustomDate(e.target.value)} 
+                    value={session.customDate} 
+                    onChange={e => updateSession({ customDate: e.target.value })} 
                     className="bg-transparent text-white font-black italic text-xs outline-none [color-scheme:dark] cursor-pointer" 
                   />
                 </div>
                 <div className="hidden sm:block">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Session Progress</p>
                   <p className="font-black text-sm uppercase italic tracking-tight text-blue-400">
-                    {sessionExercises.length} Movements Logged
+                    {session.sessionExercises.length} Movements Logged
                   </p>
                 </div>
               </div>
