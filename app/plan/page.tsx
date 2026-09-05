@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ArrowRight, CalendarRange, Flag, Layers3 } from 'lucide-react';
 
 const mesocycles = [
@@ -89,7 +90,10 @@ export default function PlanPage() {
         </header>
 
         <section className="grid gap-6 md:grid-cols-3">
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <Link
+            href="/plan/macrocycle"
+            className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          >
             <div className="mb-4 flex items-center gap-3 text-blue-600">
               <Flag size={20} />
               <span className="text-xs font-black uppercase tracking-[0.3em]">Macrocycle</span>
@@ -98,9 +102,12 @@ export default function PlanPage() {
             <p className="mt-3 text-sm text-slate-600">
               The macrocycle sets the outcome for the full year: build capacity, raise strength, peak at the right time, and leave room for recovery.
             </p>
-          </article>
+          </Link>
 
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <Link
+            href="/plan/mesocycle"
+            className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          >
             <div className="mb-4 flex items-center gap-3 text-orange-500">
               <Layers3 size={20} />
               <span className="text-xs font-black uppercase tracking-[0.3em]">Mesocycle</span>
@@ -109,9 +116,12 @@ export default function PlanPage() {
             <p className="mt-3 text-sm text-slate-600">
               Mesocycles break the year into blocks with a single dominant objective, such as accumulation, intensification, or peaking.
             </p>
-          </article>
+          </Link>
 
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <Link
+            href="/plan/microcycle"
+            className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          >
             <div className="mb-4 flex items-center gap-3 text-emerald-600">
               <ArrowRight size={20} />
               <span className="text-xs font-black uppercase tracking-[0.3em]">Microcycle</span>
@@ -120,7 +130,7 @@ export default function PlanPage() {
             <p className="mt-3 text-sm text-slate-600">
               Microcycles turn the block objective into weekly prescriptions for volume, intensity, skill practice, and fatigue management.
             </p>
-          </article>
+          </Link>
         </section>
 
         <section className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
