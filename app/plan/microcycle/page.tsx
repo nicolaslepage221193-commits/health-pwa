@@ -62,6 +62,44 @@ type MicrocycleRow = {
   actual_volume_hours: number | null;
   actual_distance_km: number | null;
   is_recovery_week: boolean | null;
+  mesocycles:
+    | {
+    id: string;
+    title: string;
+    sequence_order: number;
+    start_date: string;
+    end_date: string;
+    macrocycle_id: string;
+    macrocycles:
+      | {
+      title: string;
+      primary_sport: SportType;
+    }
+      | {
+      title: string;
+      primary_sport: SportType;
+    }[]
+      | null;
+  }
+    | {
+    id: string;
+    title: string;
+    sequence_order: number;
+    start_date: string;
+    end_date: string;
+    macrocycle_id: string;
+    macrocycles:
+      | {
+      title: string;
+      primary_sport: SportType;
+    }
+      | {
+      title: string;
+      primary_sport: SportType;
+    }[]
+      | null;
+  }[]
+    | null;
 };
 
 function getDurationWeeks(startDate: string, endDate: string): number {
@@ -121,69 +159,88 @@ export default function MicrocyclePage() {
         return;
       }
 
-      const { data: mesocycleRows, error: mesocycleError } = await supabase
-        .from('mesocycles')
-        .select('id, title, sequence_order, start_date, end_date, macrocycle_id, macrocycles(title, primary_sport)')
-        .order('sequence_order', { ascending: true });
-
-      if (mesocycleError) {
-        setErrorMsg(`Failed to load mesocycles: ${mesocycleError.message}`);
-        setLoading(false);
-        return;
-      }
-
-      if (!mesocycleRows) {
-        setErrorMsg('Mesocycle query returned no data.');
-        setLoading(false);
-        return;
-      }
-
-      if (mesocycleRows.length === 0) {
-        setErrorMsg('No mesocycles found for this account.');
-        setLoading(false);
-        return;
-      }
-
-      const normalizedMesocycles = (mesocycleRows as MesocycleRow[]).map((row) => ({
-        ...row,
-        macrocycles: Array.isArray(row.macrocycles) ? row.macrocycles[0] : row.macrocycles,
-      }));
-
-      const today = new Date();
-      const activeMesocycle =
-        normalizedMesocycles.find((row) => {
-          const start = new Date(`${row.start_date}T00:00:00`);
-          const end = new Date(`${row.end_date}T23:59:59`);
-          return today >= start && today <= end;
-        }) || normalizedMesocycles[0];
-
-      const plan: MacrocyclePlan = {
-        id: activeMesocycle.macrocycle_id,
-        title: activeMesocycle.macrocycles?.title || 'TRAINING PLAN',
-        primarySport: activeMesocycle.macrocycles?.primary_sport || 'CYCLE',
-        mesocycles: normalizedMesocycles.map((row) => ({
-          id: row.id,
-          name: row.title,
-          durationWeeks: getDurationWeeks(row.start_date, row.end_date),
-          isCurrent: row.id === activeMesocycle.id,
-        })),
-      };
-
-      setMacrocyclePlan(plan);
-
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week')
-        .eq('mesocycle_id', activeMesocycle.id)
+        .select('id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week, mesocycles(id, title, sequence_order, start_date, end_date, macrocycle_id, macrocycles(title, primary_sport))')
         .order('week_number', { ascending: true });
 
       if (microcycleError) {
-        setErrorMsg(microcycleError.message);
+        setErrorMsg(`Failed to load microcycles: ${microcycleError.message}`);
         setLoading(false);
         return;
       }
 
-      const mappedMicrocycles: Microcycle[] = (microcycleRows as MicrocycleRow[]).map((row) => ({
+      if (!microcycleRows) {
+        setErrorMsg('Microcycle query returned no data.');
+        setLoading(false);
+        return;
+      }
+
+      if (microcycleRows.length === 0) {
+        setErrorMsg('No microcycles found for this account.');
+        setLoading(false);
+        return;
+      }
+
+      const normalizedRows = (microcycleRows as MicrocycleRow[]).map((row) => {
+        const mesocycle = Array.isArray(row.mesocycles) ? row.mesocycles[0] : row.mesocycles;
+        const macrocycle = mesocycle
+          ? Array.isArray(mesocycle.macrocycles)
+            ? mesocycle.macrocycles[0]
+            : mesocycle.macrocycles
+          : null;
+
+        return {
+          row,
+          mesocycle,
+          macrocycle,
+        };
+      });
+
+      const rowsWithMesocycle = normalizedRows.filter((entry) => entry.mesocycle);
+      if (rowsWithMesocycle.length === 0) {
+        setErrorMsg('Microcycles are not linked to any mesocycle records.');
+        setLoading(false);
+        return;
+      }
+
+      const today = new Date();
+      const activeMicrocycleEntry =
+        rowsWithMesocycle.find((entry) => {
+          const start = new Date(`${entry.row.start_date}T00:00:00`);
+          const end = new Date(`${entry.row.end_date}T23:59:59`);
+          return today >= start && today <= end;
+        }) || rowsWithMesocycle[0];
+
+      const activeMesocycleId = activeMicrocycleEntry.mesocycle!.id;
+      const activeMacrocycle = activeMicrocycleEntry.macrocycle;
+
+      const uniqueMesocycles = new Map<string, NonNullable<(typeof rowsWithMesocycle)[number]['mesocycle']>>();
+      rowsWithMesocycle.forEach((entry) => {
+        if (!uniqueMesocycles.has(entry.mesocycle!.id)) {
+          uniqueMesocycles.set(entry.mesocycle!.id, entry.mesocycle!);
+        }
+      });
+
+      const orderedMesocycles = Array.from(uniqueMesocycles.values()).sort(
+        (a, b) => a.sequence_order - b.sequence_order,
+      );
+
+      const plan: MacrocyclePlan = {
+        id: activeMicrocycleEntry.mesocycle!.macrocycle_id,
+        title: activeMacrocycle?.title || 'TRAINING PLAN',
+        primarySport: activeMacrocycle?.primary_sport || 'CYCLE',
+        mesocycles: orderedMesocycles.map((row) => ({
+          id: row.id,
+          name: row.title,
+          durationWeeks: getDurationWeeks(row.start_date, row.end_date),
+          isCurrent: row.id === activeMesocycleId,
+        })),
+      };
+
+      const mappedMicrocycles: Microcycle[] = rowsWithMesocycle
+        .filter((entry) => entry.mesocycle!.id === activeMesocycleId)
+        .map(({ row }) => ({
         id: row.id,
         weekNumber: row.week_number,
         startDate: row.start_date,
@@ -195,8 +252,9 @@ export default function MicrocyclePage() {
         isRecoveryWeek: row.is_recovery_week ?? false,
       }));
 
+      setMacrocyclePlan(plan);
       setMicrocycles(mappedMicrocycles);
-      setCurrentMicrocycleId(mappedMicrocycles[0]?.id || null);
+      setCurrentMicrocycleId(activeMicrocycleEntry.row.id || mappedMicrocycles[0]?.id || null);
       setLoading(false);
     }
 
