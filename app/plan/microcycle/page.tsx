@@ -1,24 +1,11 @@
+'use client';
+
 import Link from 'next/link';
 import { Activity, Bike, ChevronLeft, Plus, Waves } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../supabase';
 
-type SportType = 'Run' | 'Swim' | 'Cycle' | 'Rest';
-
-interface DailyWorkout {
-  id: string;
-  date: number;
-  dayOfWeek: string;
-  sportType: SportType;
-  workoutName: string;
-  targetMetrics: string;
-  isRestDay: boolean;
-}
-
-interface Microcycle {
-  id: string;
-  title: string;
-  dateRange: string;
-  days: DailyWorkout[];
-}
+type SportType = 'RUN' | 'CYCLE' | 'SWIM';
 
 interface MesocycleBlock {
   id: string;
@@ -30,123 +17,211 @@ interface MesocycleBlock {
 interface MacrocyclePlan {
   id: string;
   title: string;
+  primarySport: SportType;
   mesocycles: MesocycleBlock[];
 }
 
-const macrocyclePlan: MacrocyclePlan = {
-  id: 'spring-marathon-plan',
-  title: 'SPRING MARATHON PLAN',
-  mesocycles: [
-    { id: 'base-1', name: 'BASE 1', durationWeeks: 4, isCurrent: true },
-    { id: 'build-1', name: 'BUILD 1', durationWeeks: 4, isCurrent: false },
-    { id: 'build-2', name: 'BUILD 2', durationWeeks: 4, isCurrent: false },
-    { id: 'peak', name: 'PEAK', durationWeeks: 2, isCurrent: false },
-    { id: 'taper', name: 'TAPER', durationWeeks: 2, isCurrent: false },
-  ],
+interface Microcycle {
+  id: string;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  targetVolumeHours: number;
+  targetDistanceKm: number;
+  actualVolumeHours: number;
+  actualDistanceKm: number;
+  isRecoveryWeek: boolean;
+}
+
+type MesocycleRow = {
+  id: string;
+  title: string;
+  sequence_order: number;
+  start_date: string;
+  end_date: string;
+  macrocycle_id: string;
+  macrocycles:
+    | {
+    title: string;
+    primary_sport: SportType;
+  }
+    | {
+    title: string;
+    primary_sport: SportType;
+  }[]
+    | null;
 };
 
-const currentMicrocycle: Microcycle = {
-  id: 'microcycle-3',
-  title: 'MICROCYCLE 3: BASE 1',
-  dateRange: 'Nov 8-14',
-  days: [
-    {
-      id: 'mon',
-      date: 8,
-      dayOfWeek: 'Mon',
-      sportType: 'Run',
-      workoutName: 'Easy',
-      targetMetrics: '60m (4:30/km pace)',
-      isRestDay: false,
-    },
-    {
-      id: 'tue',
-      date: 9,
-      dayOfWeek: 'Tue',
-      sportType: 'Swim',
-      workoutName: 'Drills',
-      targetMetrics: '45m (12 x 50m drills)',
-      isRestDay: false,
-    },
-    {
-      id: 'wed',
-      date: 10,
-      dayOfWeek: 'Wed',
-      sportType: 'Cycle',
-      workoutName: 'Tempo',
-      targetMetrics: '120m (220W)',
-      isRestDay: false,
-    },
-    {
-      id: 'thu',
-      date: 11,
-      dayOfWeek: 'Thu',
-      sportType: 'Run',
-      workoutName: 'Steady State',
-      targetMetrics: '75m at marathon effort',
-      isRestDay: false,
-    },
-    {
-      id: 'fri',
-      date: 12,
-      dayOfWeek: 'Fri',
-      sportType: 'Rest',
-      workoutName: 'REST',
-      targetMetrics: 'Mobility + full recovery',
-      isRestDay: true,
-    },
-    {
-      id: 'sat',
-      date: 13,
-      dayOfWeek: 'Sat',
-      sportType: 'Cycle',
-      workoutName: 'Aerobic Endurance',
-      targetMetrics: '150m (Zone 2 steady)',
-      isRestDay: false,
-    },
-    {
-      id: 'sun',
-      date: 14,
-      dayOfWeek: 'Sun',
-      sportType: 'Run',
-      workoutName: 'Long Run',
-      targetMetrics: '24km relaxed negative split',
-      isRestDay: false,
-    },
-  ],
+type MicrocycleRow = {
+  id: string;
+  week_number: number;
+  start_date: string;
+  end_date: string;
+  target_volume_hours: number | null;
+  target_distance_km: number | null;
+  actual_volume_hours: number | null;
+  actual_distance_km: number | null;
+  is_recovery_week: boolean | null;
 };
 
-function getWorkoutStyles(sportType: SportType) {
-  switch (sportType) {
-    case 'Run':
+function getDurationWeeks(startDate: string, endDate: string): number {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffMs = end.getTime() - start.getTime();
+  const days = Math.floor(diffMs / 86400000) + 1;
+  return Math.max(1, Math.ceil(days / 7));
+}
+
+function formatDateRange(startDate: string, endDate: string): string {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt.format(start)}-${fmt.format(end)}`;
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function getSportStyles(sport: SportType) {
+  switch (sport) {
+    case 'RUN':
       return {
         cardClass: 'bg-[#2B4C6F]/85 border-[#40688f]/70',
         icon: <Activity size={18} className="text-slate-100" />,
         label: 'RUN',
       };
-    case 'Swim':
+    case 'SWIM':
       return {
         cardClass: 'bg-[#1F5A73]/85 border-[#317590]/70',
         icon: <Waves size={18} className="text-slate-100" />,
         label: 'SWIM',
       };
-    case 'Cycle':
+    default:
       return {
         cardClass: 'bg-[#2E6B4B]/85 border-[#478b66]/70',
         icon: <Bike size={18} className="text-slate-100" />,
         label: 'CYCLE',
       };
-    default:
-      return {
-        cardClass: 'bg-slate-700/60 border-slate-600/70',
-        icon: <Plus size={18} className="text-slate-300" />,
-        label: 'REST',
-      };
   }
 }
 
 export default function MicrocyclePage() {
-  const activeMesocycleIndex = macrocyclePlan.mesocycles.findIndex((block) => block.isCurrent);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
+  const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
+  const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!supabase) {
+        setErrorMsg('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+        setLoading(false);
+        return;
+      }
+
+      const { data: mesocycleRows, error: mesocycleError } = await supabase
+        .from('mesocycles')
+        .select('id, title, sequence_order, start_date, end_date, macrocycle_id, macrocycles(title, primary_sport)')
+        .order('sequence_order', { ascending: true });
+
+      if (mesocycleError || !mesocycleRows || mesocycleRows.length === 0) {
+        setErrorMsg(mesocycleError?.message || 'No mesocycles found.');
+        setLoading(false);
+        return;
+      }
+
+      const normalizedMesocycles = (mesocycleRows as MesocycleRow[]).map((row) => ({
+        ...row,
+        macrocycles: Array.isArray(row.macrocycles) ? row.macrocycles[0] : row.macrocycles,
+      }));
+
+      const today = new Date();
+      const activeMesocycle =
+        normalizedMesocycles.find((row) => {
+          const start = new Date(`${row.start_date}T00:00:00`);
+          const end = new Date(`${row.end_date}T23:59:59`);
+          return today >= start && today <= end;
+        }) || normalizedMesocycles[0];
+
+      const plan: MacrocyclePlan = {
+        id: activeMesocycle.macrocycle_id,
+        title: activeMesocycle.macrocycles?.title || 'TRAINING PLAN',
+        primarySport: activeMesocycle.macrocycles?.primary_sport || 'CYCLE',
+        mesocycles: normalizedMesocycles.map((row) => ({
+          id: row.id,
+          name: row.title,
+          durationWeeks: getDurationWeeks(row.start_date, row.end_date),
+          isCurrent: row.id === activeMesocycle.id,
+        })),
+      };
+
+      setMacrocyclePlan(plan);
+
+      const { data: microcycleRows, error: microcycleError } = await supabase
+        .from('microcycles')
+        .select('id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week')
+        .eq('mesocycle_id', activeMesocycle.id)
+        .order('week_number', { ascending: true });
+
+      if (microcycleError) {
+        setErrorMsg(microcycleError.message);
+        setLoading(false);
+        return;
+      }
+
+      const mappedMicrocycles: Microcycle[] = (microcycleRows as MicrocycleRow[]).map((row) => ({
+        id: row.id,
+        weekNumber: row.week_number,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        targetVolumeHours: row.target_volume_hours ?? 0,
+        targetDistanceKm: row.target_distance_km ?? 0,
+        actualVolumeHours: row.actual_volume_hours ?? 0,
+        actualDistanceKm: row.actual_distance_km ?? 0,
+        isRecoveryWeek: row.is_recovery_week ?? false,
+      }));
+
+      setMicrocycles(mappedMicrocycles);
+      setCurrentMicrocycleId(mappedMicrocycles[0]?.id || null);
+      setLoading(false);
+    }
+
+    fetchData();
+  }, []);
+
+  const activeMesocycleIndex = useMemo(() => {
+    if (!macrocyclePlan) return -1;
+    return macrocyclePlan.mesocycles.findIndex((block) => block.isCurrent);
+  }, [macrocyclePlan]);
+
+  const currentMicrocycle = useMemo(() => {
+    if (microcycles.length === 0) return null;
+    return microcycles.find((m) => m.id === currentMicrocycleId) || microcycles[0];
+  }, [currentMicrocycleId, microcycles]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] px-6 py-10 text-slate-300">
+        <div className="mx-auto max-w-3xl animate-pulse rounded-3xl border border-slate-700/50 bg-slate-900/40 p-6">
+          Loading microcycle data...
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMsg || !macrocyclePlan) {
+    return (
+      <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] px-6 py-10 text-slate-300">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-red-800/50 bg-red-950/40 p-6">
+          {errorMsg || 'Unable to load microcycle data.'}
+        </div>
+      </div>
+    );
+  }
+
+  const sportStyles = getSportStyles(macrocyclePlan.primarySport);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] text-slate-100">
@@ -176,7 +251,7 @@ export default function MicrocyclePage() {
               const isCompleted = index < activeMesocycleIndex;
 
               return (
-                <div key={block.id} className="flex min-w-[110px] flex-1 items-center">
+                <div key={block.id} className="flex min-w-[130px] flex-1 items-center">
                   <div className="flex w-full flex-col items-center text-center">
                     <div
                       className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight ${
@@ -190,8 +265,9 @@ export default function MicrocyclePage() {
                       {index + 1}
                     </div>
                     <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isActive ? 'text-emerald-300' : 'text-slate-400'}`}>
-                      {block.name} ({block.durationWeeks} wks)
+                      {block.name}
                     </p>
+                    <p className="mt-1 text-[10px] text-slate-500">{block.durationWeeks} wks</p>
                   </div>
                   {index < macrocyclePlan.mesocycles.length - 1 && (
                     <div
@@ -218,61 +294,76 @@ export default function MicrocyclePage() {
         <section className="mt-6">
           <div className="mb-4 px-1">
             <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
-              {currentMicrocycle.title}
+              {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
             </h1>
-            <p className="mt-1 text-sm text-slate-400">{currentMicrocycle.dateRange}</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {currentMicrocycle ? formatDateRange(currentMicrocycle.startDate, currentMicrocycle.endDate) : 'No weeks yet'}
+            </p>
           </div>
 
           <div className="space-y-4">
-            {currentMicrocycle.days.map((day) => {
-              const styles = getWorkoutStyles(day.sportType);
+            {microcycles.length === 0 && (
+              <div className="rounded-[1.75rem] border border-slate-700/60 bg-slate-900/30 p-6 text-sm text-slate-300">
+                No microcycles found for this mesocycle.
+              </div>
+            )}
+
+            {microcycles.map((week) => {
+              const recoveryClass = week.isRecoveryWeek ? 'bg-slate-700/60 border-slate-600/70' : sportStyles.cardClass;
 
               return (
-                <article key={day.id} className="flex items-stretch gap-3">
+                <article
+                  key={week.id}
+                  className={`flex items-stretch gap-3 ${currentMicrocycleId === week.id ? '' : 'opacity-80'}`}
+                  onMouseEnter={() => setCurrentMicrocycleId(week.id)}
+                >
                   <div className="flex w-16 flex-shrink-0 flex-col items-center justify-center rounded-[1.5rem] border border-slate-700/50 bg-slate-900/30 px-2 py-4 text-center">
-                    <span className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-400">
-                      {day.dayOfWeek}
-                    </span>
-                    <span className="mt-2 text-3xl font-black tracking-tight text-white">{day.date}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Wk</span>
+                    <span className="mt-1 text-2xl font-black tracking-tight text-white">{week.weekNumber}</span>
                   </div>
 
                   <div
-                    className={`flex-1 rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${styles.cardClass}`}
+                    className={`flex-1 rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${recoveryClass}`}
                   >
-                    {day.isRestDay ? (
-                      <div className="flex min-h-[92px] flex-col justify-center">
-                        <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-300">
-                          {styles.label}
-                        </p>
-                        <h2 className="mt-2 text-2xl font-black uppercase tracking-tight text-white">
-                          REST
-                        </h2>
-                      </div>
-                    ) : (
-                      <div className="flex min-h-[92px] flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
-                              {styles.icon}
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-200/90">
-                                {styles.label}
-                              </p>
-                              <h2 className="mt-1 text-xl font-black uppercase tracking-tight text-white">
-                                {day.workoutName}
-                              </h2>
-                            </div>
+                    <div className="flex min-h-[92px] flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
+                            {week.isRecoveryWeek ? <Plus size={18} className="text-slate-200" /> : sportStyles.icon}
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-200/90">
+                              {week.isRecoveryWeek ? 'RECOVERY' : sportStyles.label}
+                            </p>
+                            <h2 className="mt-1 text-xl font-black uppercase tracking-tight text-white">
+                              {week.isRecoveryWeek ? 'Recovery Week' : `Training Week ${week.weekNumber}`}
+                            </h2>
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-left sm:min-w-[180px] sm:text-right">
-                          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-300">
-                            Target
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-white">{day.targetMetrics}</p>
+                        <p className="mt-3 text-sm text-slate-100/90">
+                          {formatDateRange(week.startDate, week.endDate)}
+                        </p>
+                      </div>
+
+                      <div className="grid min-w-[210px] grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-left text-sm sm:text-right">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Target h</p>
+                          <p className="mt-1 font-semibold text-white">{formatNumber(week.targetVolumeHours)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Target km</p>
+                          <p className="mt-1 font-semibold text-white">{formatNumber(week.targetDistanceKm)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Actual h</p>
+                          <p className="mt-1 font-semibold text-white">{formatNumber(week.actualVolumeHours)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Actual km</p>
+                          <p className="mt-1 font-semibold text-white">{formatNumber(week.actualDistanceKm)}</p>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </article>
               );
@@ -284,10 +375,10 @@ export default function MicrocyclePage() {
       <div className="fixed inset-x-0 bottom-0 border-t border-slate-700/50 bg-slate-950/90 px-4 pb-6 pt-4 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           <div className="flex items-center justify-center gap-2">
-            {macrocyclePlan.mesocycles.map((block) => (
+            {microcycles.slice(0, 6).map((week) => (
               <span
-                key={`${block.id}-pager`}
-                className={`h-2.5 w-2.5 rounded-full ${block.isCurrent ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                key={`${week.id}-pager`}
+                className={`h-2.5 rounded-full ${currentMicrocycleId === week.id ? 'w-8 bg-emerald-400' : 'w-2.5 bg-slate-600'}`}
               />
             ))}
           </div>
