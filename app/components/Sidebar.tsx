@@ -6,10 +6,8 @@ import { useState, useEffect } from 'react';
 import {supabase} from '../supabase';
 import {
   Dumbbell,
-  Heart,
   Calendar as CalendarIcon,
   Apple,
-  Pill,
   CalendarCheck,
   UserCircle,
   ChevronDown,
@@ -59,10 +57,8 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         { name: 'LIBRARY', icon: <ClipboardList size={14} />, href: '/workout/library' },
       ],
     },
-    { name: 'Cardio', icon: <Heart size={20} />, href: '/workout/cardio' },
     { name: 'History', icon: <CalendarIcon size={20} />, href: '/history' },
     { name: 'Nutrition', icon: <Apple size={20} />, href: '#' },
-    { name: 'Medication', icon: <Pill size={20} />, href: '#' },
     { name: 'Calendar', icon: <CalendarCheck size={20} />, href: '/calendar' },
     { name: 'Profile', icon: <UserCircle size={20} />, href: '#' },
     { name: 'COMMENTS', icon: <MessageSquare size={20} />, href: '/comments' },
