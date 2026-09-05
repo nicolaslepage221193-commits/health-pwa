@@ -23,19 +23,13 @@ type SidebarProps = {
 };
 
 export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
-  const [showDebug, setShowDebug] = useState(true);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
-  const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const [mounted, setMounted] = useState(false);
-  const [userAgent, setUserAgent] = useState('');
 
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
-    if (typeof window !== 'undefined') {
-      setUserAgent(window.navigator.userAgent);
-    }
   }, []);
 
   const toggleCollapse = () => {
@@ -163,18 +157,6 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
           )}
         </div>
       </div>
-            {/* --- DEBUG OVERLAY --- */}
-      {showDebug && !collapsed && (
-        <div className="p-3 bg-red-50 border border-red-100 rounded-xl animate-in fade-in zoom-in-95">
-          <p className="text-[8px] font-black text-red-400 uppercase mb-1">Debug Info</p>
-          <p className="text-[10px] font-mono text-red-600 break-all bg-white p-2 rounded-md border border-red-100">
-            URL: {envUrl || "UNDEFINED (Check .env)"}
-          </p>
-          <p className="text-[10px] font-mono text-red-600 mt-2 bg-white p-2 rounded-md border border-red-100">
-            User Agent: {mounted ? (userAgent.includes('iPhone') ? 'iPhone Detected' : 'Other') : 'Loading...'}
-          </p>
-        </div>
-      )}
     </aside>
   );
 }
