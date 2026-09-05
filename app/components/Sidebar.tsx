@@ -14,6 +14,7 @@ import {
   Play,
   MessageSquare,
   ClipboardList,
+  FileText,
 } from 'lucide-react';
 
 type SidebarProps = {
@@ -44,6 +45,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const navItems = [
     { name: 'Train', icon: <Play size={20} />, href: '/workout/train' },
     { name: 'Library', icon: <ClipboardList size={20} />, href: '/workout/library' },
+    { name: 'Plan', icon: <FileText size={20} />, href: '/plan' },
     { name: 'History', icon: <CalendarIcon size={20} />, href: '/history' },
     { name: 'Nutrition', icon: <Apple size={20} />, href: '#' },
     { name: 'Calendar', icon: <CalendarCheck size={20} />, href: '/calendar' },
