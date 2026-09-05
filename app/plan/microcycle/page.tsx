@@ -126,8 +126,20 @@ export default function MicrocyclePage() {
         .select('id, title, sequence_order, start_date, end_date, macrocycle_id, macrocycles(title, primary_sport)')
         .order('sequence_order', { ascending: true });
 
-      if (mesocycleError || !mesocycleRows || mesocycleRows.length === 0) {
-        setErrorMsg(mesocycleError?.message || 'No mesocycles found.');
+      if (mesocycleError) {
+        setErrorMsg(`Failed to load mesocycles: ${mesocycleError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!mesocycleRows) {
+        setErrorMsg('Mesocycle query returned no data.');
+        setLoading(false);
+        return;
+      }
+
+      if (mesocycleRows.length === 0) {
+        setErrorMsg('No mesocycles found for this account.');
         setLoading(false);
         return;
       }
@@ -203,7 +215,7 @@ export default function MicrocyclePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] px-6 py-10 text-slate-300">
+      <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#1A232A,#10171D)] px-6 py-10 text-slate-300">
         <div className="mx-auto max-w-3xl animate-pulse rounded-3xl border border-slate-700/50 bg-slate-900/40 p-6">
           Loading microcycle data...
         </div>
@@ -213,7 +225,7 @@ export default function MicrocyclePage() {
 
   if (errorMsg || !macrocyclePlan) {
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] px-6 py-10 text-slate-300">
+      <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#1A232A,#10171D)] px-6 py-10 text-slate-300">
         <div className="mx-auto max-w-3xl rounded-3xl border border-red-800/50 bg-red-950/40 p-6">
           {errorMsg || 'Unable to load microcycle data.'}
         </div>
@@ -224,7 +236,7 @@ export default function MicrocyclePage() {
   const sportStyles = getSportStyles(macrocyclePlan.primarySport);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#1A232A_0%,#10171D_100%)] text-slate-100">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#1A232A,#10171D)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-40 pt-8 sm:px-6">
         <header className="rounded-[2rem] border border-slate-700/50 bg-slate-900/40 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur">
           <div className="flex items-start gap-4">
