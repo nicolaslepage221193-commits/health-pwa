@@ -5,12 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {supabase} from '../supabase';
 import {
-  Dumbbell,
   Calendar as CalendarIcon,
   Apple,
   CalendarCheck,
   UserCircle,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Play,
@@ -31,8 +29,6 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const [userAgent, setUserAgent] = useState('');
 
   const pathname = usePathname();
-  const [workoutOpen, setWorkoutOpen] = useState(true);
-  const [collapsedSubmenuOpen, setCollapsedSubmenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -43,20 +39,11 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
   const toggleCollapse = () => {
     onCollapse(!collapsed);
-    setCollapsedSubmenuOpen(false);
   };
 
   const navItems = [
-    {
-      name: 'Workout',
-      icon: <Dumbbell size={20} />,
-      href: '/workout',
-      hasSubmenu: true,
-      subItems: [
-        { name: 'Train', icon: <Play size={14} />, href: '/workout/train' },
-        { name: 'LIBRARY', icon: <ClipboardList size={14} />, href: '/workout/library' },
-      ],
-    },
+    { name: 'Train', icon: <Play size={20} />, href: '/workout/train' },
+    { name: 'Library', icon: <ClipboardList size={20} />, href: '/workout/library' },
     { name: 'History', icon: <CalendarIcon size={20} />, href: '/history' },
     { name: 'Nutrition', icon: <Apple size={20} />, href: '#' },
     { name: 'Calendar', icon: <CalendarCheck size={20} />, href: '/calendar' },
@@ -101,11 +88,6 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
   return (
     <aside
-      onMouseLeave={() => {
-        if (collapsedSubmenuOpen) {
-          setCollapsedSubmenuOpen(false);
-        }
-      }}
       style={{ touchAction: 'manipulation' }}
       className={`h-screen bg-white border-r border-slate-100 flex flex-col p-4 fixed left-0 top-0 z-50 transition-all duration-300 ${
         collapsed ? 'w-20' : 'w-64'
@@ -134,103 +116,21 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         {navItems.map((item) => {
           const isActive = pathname === item.href;
 
-          const onItemClick = (event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement, MouseEvent>) => {
-            if (item.hasSubmenu) {
-              event.preventDefault();
-
-              if (collapsed) {
-                setCollapsedSubmenuOpen((prev) => !prev);
-                return;
-              }
-
-              setWorkoutOpen((prev) => !prev);
-            }
-          };
-
           return (
             <div key={item.name} className="space-y-1">
-              {item.hasSubmenu ? (
-            <button
-              type="button"
-              onClick={onItemClick}
-              className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-3 rounded-2xl transition-all text-left group ${
-                isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="group-hover:scale-110 transition-transform">{item.icon}</span>
-                {!collapsed && (
-                  <span className="font-bold text-sm uppercase tracking-tight">{item.name}</span>
-                )}
-              </div>
-              {!collapsed && (
-                <ChevronDown size={16} className={`transition-transform ${workoutOpen ? 'rotate-180' : ''}`} />
-              )}
-            </button>
-          ) : (
-            <Link
-              href={item.href}
-              className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-3 rounded-2xl transition-all group ${
-                isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="group-hover:scale-110 transition-transform">{item.icon}</span>
-                {!collapsed && (
-                  <span className="font-bold text-sm uppercase tracking-tight">{item.name}</span>
-                )}
-              </div>
-            </Link>
-          )}
-
-              {item.hasSubmenu && !collapsed && workoutOpen && (
-                <div className="ml-6 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                  {item.subItems.map((sub) => {
-                    const isSubActive = pathname === sub.href;
-                    return (
-                      <Link
-                        key={sub.name}
-                        href={sub.href}
-                        onClick={() => {
-                          if (collapsed) {
-                            setCollapsedSubmenuOpen(false);
-                          }
-                        }}
-                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${
-                          isSubActive ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
-                        }`}
-                      >
-                        {sub.icon}
-                        <span className="font-bold text-[11px] uppercase tracking-tight whitespace-nowrap">{sub.name}</span>
-                      </Link>
-                    );
-                  })}
+              <Link
+                href={item.href}
+                className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-3 rounded-2xl transition-all group ${
+                  isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="group-hover:scale-110 transition-transform">{item.icon}</span>
+                  {!collapsed && (
+                    <span className="font-bold text-sm uppercase tracking-tight">{item.name}</span>
+                  )}
                 </div>
-              )}
-
-              {item.hasSubmenu && collapsed && collapsedSubmenuOpen && (
-                <div className="absolute left-20 top-16 z-50 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                  <div className="mb-2 px-2 text-xs font-semibold uppercase tracking-tight text-slate-400">{item.name}</div>
-                  {item.subItems.map((sub) => {
-                    const isSubActive = pathname === sub.href;
-                    return (
-                      <Link
-                        key={sub.name}
-                        href={sub.href}
-                        onClick={() => setCollapsedSubmenuOpen(false)}
-                        className={`block rounded-lg px-3 py-2 text-sm transition ${
-                          isSubActive ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {sub.icon}
-                          <span className="font-medium whitespace-nowrap">{sub.name}</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+              </Link>
             </div>
           );
         })}
