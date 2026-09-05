@@ -177,7 +177,7 @@ export default function MicrocyclePage() {
       }
 
       if (microcycleRows.length === 0) {
-        setErrorMsg('No microcycles found for this account.');
+        setErrorMsg(`No microcycles found: ${JSON.stringify(microcycleRows)}`);
         setLoading(false);
         return;
       }
