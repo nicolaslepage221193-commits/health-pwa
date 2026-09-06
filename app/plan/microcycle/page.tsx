@@ -106,12 +106,15 @@ function getSportStyles(sport: SportType) {
 export default function MicrocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [warningMsg, setWarningMsg] = useState<string | null>(null);
   const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
+      setWarningMsg(null);
+
       if (!supabase) {
         setErrorMsg('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
         setLoading(false);
@@ -120,7 +123,7 @@ export default function MicrocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('*')
+        .select('id, mesocycle_id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week')
         .order('week_number', { ascending: true });
 
       if (microcycleError) {
@@ -222,9 +225,26 @@ export default function MicrocyclePage() {
         isRecoveryWeek: row.is_recovery_week ?? false,
       }));
 
+      const fallbackMicrocycles: Microcycle[] = normalizedRows.map((row) => ({
+        id: row.id,
+        weekNumber: row.week_number,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        targetVolumeHours: row.target_volume_hours ?? 0,
+        targetDistanceKm: row.target_distance_km ?? 0,
+        actualVolumeHours: row.actual_volume_hours ?? 0,
+        actualDistanceKm: row.actual_distance_km ?? 0,
+        isRecoveryWeek: row.is_recovery_week ?? false,
+      }));
+
+      const resolvedMicrocycles = mappedMicrocycles.length > 0 ? mappedMicrocycles : fallbackMicrocycles;
+      if (mappedMicrocycles.length === 0 && fallbackMicrocycles.length > 0) {
+        setWarningMsg('Loaded microcycles, but none matched the resolved active mesocycle. Showing all fetched microcycles.');
+      }
+
       setMacrocyclePlan(plan);
-      setMicrocycles(mappedMicrocycles);
-      setCurrentMicrocycleId(activeMicrocycleEntry?.id || mappedMicrocycles[0]?.id || null);
+      setMicrocycles(resolvedMicrocycles);
+      setCurrentMicrocycleId(activeMicrocycleEntry?.id || resolvedMicrocycles[0]?.id || null);
       setLoading(false);
     }
 
@@ -332,6 +352,12 @@ export default function MicrocyclePage() {
         </section>
 
         <section className="mt-6">
+          {warningMsg && (
+            <div className="mb-4 rounded-2xl border border-amber-700/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">
+              {warningMsg}
+            </div>
+          )}
+
           <div className="mb-4 px-1">
             <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
               {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
