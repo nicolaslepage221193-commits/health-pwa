@@ -282,38 +282,19 @@ export default function MesocyclePage() {
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Block Timeline</p>
-          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">All Blocks</h2>
-          <div className="mt-6 flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-4 flex items-center gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {plan.mesocycles.map((mesocycle, index) => {
               const isCurrent = mesocycle.id === plan.activeMesocycleId;
 
               return (
-                <div key={mesocycle.id} className="flex shrink-0 items-start">
-                  <article
-                    className={`w-[220px] rounded-[1.75rem] border p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] ${
-                      isCurrent
-                        ? 'border-[#3E8A68]/70 bg-[#549c76]/85'
-                        : 'border-slate-400/40 bg-white/70'
+                <div key={mesocycle.id} className="shrink-0">
+                  <div
+                    className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${
+                      isCurrent ? 'bg-[#549c76] text-white' : 'bg-white/80 text-slate-700'
                     }`}
                   >
-                    <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${isCurrent ? 'text-slate-100' : 'text-slate-700'}`}>
-                      Block {index + 1}
-                    </div>
-                    <h3 className={`mt-2 text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-white' : 'text-slate-900'}`}>
-                      {mesocycle.title}
-                    </h3>
-                    <p className={`mt-3 text-sm ${isCurrent ? 'text-slate-100/90' : 'text-slate-700'}`}>
-                      {mesocycle.focus}
-                    </p>
-                    <p className={`mt-2 text-xs uppercase tracking-[0.22em] ${isCurrent ? 'text-slate-100/80' : 'text-slate-500'}`}>
-                      {formatDateRange(mesocycle.startDate, mesocycle.endDate)}
-                    </p>
-                    <p className={`mt-2 text-xs uppercase tracking-[0.22em] ${isCurrent ? 'text-slate-100/80' : 'text-slate-500'}`}>
-                      {mesocycle.microcycleCount} microcycle(s)
-                    </p>
-                  </article>
-
-                  {index < plan.mesocycles.length - 1 && <div className="mt-9 h-[2px] w-12 shrink-0 bg-slate-500/60" />}
+                    {`Block ${index + 1}: ${mesocycle.title}`}
+                  </div>
                 </div>
               );
             })}
