@@ -138,11 +138,6 @@ export default function MicrocyclePage() {
         return;
       }
 
-      if (microcycleRows.length === 0) {
-        setErrorMsg(`No microcycles found: ${JSON.stringify(microcycleRows)}`);
-        setLoading(false);
-        return;
-      }
 
       const normalizedRows = microcycleRows as MicrocycleRow[];
 
@@ -362,6 +357,7 @@ export default function MicrocyclePage() {
           </div>
 
           <div className="space-y-4">
+
             {microcycles.map((week) => {
               const recoveryClass = week.isRecoveryWeek ? 'bg-slate-700/60 border-slate-600/70' : sportStyles.cardClass;
 
