@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { Activity, Bike, ChevronLeft, Waves } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { supabase } from '../../supabase';
 
 type SportType = 'RUN' | 'CYCLE' | 'SWIM';
@@ -183,7 +182,6 @@ function getSportStyles(sport: SportType) {
 }
 
 export default function MicrocyclePage() {
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
@@ -366,7 +364,10 @@ export default function MicrocyclePage() {
       setMicrocycles(mappedMicrocycles);
       setScheduledByMicrocycle(scheduledMap);
       setWorkoutTemplateById(templateMap);
-      const requestedMicrocycleId = searchParams.get('microcycleId');
+      const requestedMicrocycleId =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('microcycleId')
+          : null;
       const requestedMicrocycleExists = requestedMicrocycleId
         ? mappedMicrocycles.some((microcycle) => microcycle.id === requestedMicrocycleId)
         : false;
@@ -376,7 +377,7 @@ export default function MicrocyclePage() {
     }
 
     fetchData();
-  }, [searchParams]);
+  }, []);
 
   const currentMicrocycle = useMemo(() => {
     if (microcycles.length === 0) return null;
