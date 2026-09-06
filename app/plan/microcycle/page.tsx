@@ -439,27 +439,27 @@ export default function MicrocyclePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-40 pt-8 sm:px-6">
-        <header className="rounded-[2rem] border border-slate-700/50 bg-slate-900/40 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur">
+        <header className="rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
           <div className="flex items-start gap-4">
             <Link
               href="/plan"
               aria-label="Back to plan"
-              className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/60 bg-slate-800/70 text-slate-100 transition hover:border-emerald-500/60 hover:text-emerald-300"
+              className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-transparent text-white transition hover:border-emerald-300 hover:text-emerald-200"
             >
               <ChevronLeft size={18} />
             </Link>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.32em] text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.32em] text-white">
                 {macrocyclePlan.title}
               </p>
-              <p className="mt-2 text-sm font-medium uppercase tracking-[0.12em] text-teal-300">
+              <p className="mt-2 text-sm font-medium uppercase tracking-[0.12em] text-white">
                 {`Mesocycle ${currentMesocycleNumber} | ${currentMesocycleName}`}
               </p>
             </div>
           </div>
         </header>
 
-        <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
+        <section className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5">
           <div
             ref={timelineRef}
             onMouseDown={handleTimelineMouseDown}
@@ -490,12 +490,12 @@ export default function MicrocyclePage() {
                       className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
                         isCurrentDate
                           ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                          : 'border-slate-600 bg-slate-800/80 text-slate-400'
+                          : 'border-white/70 bg-transparent text-white'
                       } ${isSelected ? 'border-emerald-200 shadow-[inset_0_0_0_2px_rgba(110,231,183,0.95)]' : ''}`}
                     >
                       {block.weekNumber}
                     </div>
-                    <p className={`mt-3 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
+                    <p className={`mt-3 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-200' : 'text-white'}`}>
                       Week {block.weekNumber}
                     </p>
                   </button>
