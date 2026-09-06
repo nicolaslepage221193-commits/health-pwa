@@ -264,13 +264,16 @@ export default function MesocyclePage() {
         <header className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
           <div className="flex items-center gap-3 text-teal-300">
             <Layers3 size={20} />
-            <span className="text-[11px] font-black uppercase tracking-[0.35em]">Mesocycle</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.35em]">Viewing Mesocycle</span>
           </div>
           <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
-            {activeMesocycle.title}
+            {plan.macrocycleTitle}
           </h1>
+          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-100/80">
+            Mesocycle: {activeMesocycle.title}
+          </p>
           <p className="mt-3 text-sm font-medium text-slate-200/90 sm:text-base">
-            {plan.macrocycleTitle} | Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
+            Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
           </p>
         </header>
 
