@@ -487,7 +487,7 @@ export default function MicrocyclePage() {
                       }
                       setCurrentMicrocycleId(block.id);
                     }}
-                    className="relative z-10 flex w-10 flex-col items-center text-center"
+                    className={`relative flex w-10 flex-col items-center text-center ${isSelected ? 'z-20' : 'z-10'}`}
                     aria-label={`Select microcycle week ${block.weekNumber}`}
                   >
                     <div
@@ -495,7 +495,7 @@ export default function MicrocyclePage() {
                         isCurrentDate
                           ? 'bg-emerald-500 text-slate-950 border-emerald-300'
                           : 'border-slate-600 bg-slate-800/80 text-slate-400'
-                      } ${isSelected ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900' : ''}`}
+                      } ${isSelected ? 'border-emerald-200 shadow-[inset_0_0_0_2px_rgba(110,231,183,0.95)]' : ''}`}
                     >
                       {block.weekNumber}
                     </div>
