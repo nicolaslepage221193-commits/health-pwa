@@ -69,6 +69,11 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${fmt.format(start)} - ${fmt.format(end)}`;
 }
 
+function formatShortDate(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(parsed);
+}
+
 function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
   if (!Array.isArray(raw)) return [];
 
@@ -330,8 +335,8 @@ export default function MesocyclePage() {
             onMouseLeave={handleTimelineMouseUpOrLeave}
             className="mt-3 flex cursor-grab select-none items-center overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="relative flex w-max items-center px-2">
-              <div className="pointer-events-none absolute left-2 right-2 top-1/2 h-2 -translate-y-1/2 bg-slate-300/80" />
+            <div className="relative flex w-max items-center">
+              <div className="pointer-events-none absolute left-[60px] right-[60px] top-1/2 h-2 -translate-y-1/2 bg-slate-300/80" />
               {plan.mesocycles.map((mesocycle, index) => {
                 const isSelected = mesocycle.id === currentMesocycle.id;
                 const showLabelAbove = index % 2 === 0;
@@ -347,11 +352,11 @@ export default function MesocyclePage() {
                         }
                         setSelectedMesocycleId(mesocycle.id);
                       }}
-                      className="relative flex h-24 w-[120px] items-center justify-center"
+                      className="relative flex h-28 w-[120px] items-center justify-center"
                     >
                       {showLabelAbove && (
                         <span
-                          className="absolute top-0 flex max-w-[110px] flex-col items-center text-center text-white"
+                          className="absolute top-1 flex max-w-[110px] flex-col items-center text-center text-white"
                         >
                           <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
                           <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
@@ -372,7 +377,7 @@ export default function MesocyclePage() {
 
                       {!showLabelAbove && (
                         <span
-                          className="absolute bottom-0 flex max-w-[110px] flex-col items-center text-center text-white"
+                          className="absolute bottom-1 flex max-w-[110px] flex-col items-center text-center text-white"
                         >
                           <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
                           <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
@@ -403,7 +408,8 @@ export default function MesocyclePage() {
               return (
                 <div key={microcycle.id} className="flex items-center gap-4">
                   <div className="min-w-[120px] text-xs font-black uppercase tracking-[0.16em] text-slate-600">
-                    {formatDateRange(microcycle.start_date, microcycle.end_date)}
+                    <p>{formatShortDate(microcycle.start_date)}</p>
+                    <p className="mt-1">{formatShortDate(microcycle.end_date)}</p>
                   </div>
 
                   <Link
