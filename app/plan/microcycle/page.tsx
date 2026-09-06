@@ -33,6 +33,12 @@ interface Microcycle {
   isRecoveryWeek: boolean;
 }
 
+interface PlannedWorkout {
+  id: string;
+  plannedDate: string;
+  workoutName: string;
+}
+
 type MesocycleRow = {
   id: string;
   title: string;
@@ -102,6 +108,19 @@ type MicrocycleRow = {
     | null;
 };
 
+type PlannedWorkoutRow = {
+  id: string;
+  planned_date: string;
+  workout_templates:
+    | {
+        name: string;
+      }
+    | {
+        name: string;
+      }[]
+    | null;
+};
+
 function getDurationWeeks(startDate: string, endDate: string): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -119,6 +138,22 @@ function formatDateRange(startDate: string, endDate: string): string {
 
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function getDaysInRange(startDate: string, endDate: string) {
+  const days: Array<{ key: string; date: Date }> = [];
+  const current = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  while (current <= end) {
+    days.push({
+      key: current.toISOString().split('T')[0],
+      date: new Date(current),
+    });
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
 }
 
 function getSportStyles(sport: SportType) {
@@ -149,6 +184,7 @@ export default function MicrocyclePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
+  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
   const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -255,6 +291,29 @@ export default function MicrocyclePage() {
       setMacrocyclePlan(plan);
       setMicrocycles(mappedMicrocycles);
       setCurrentMicrocycleId(activeMicrocycleEntry.row.id || mappedMicrocycles[0]?.id || null);
+
+      const { data: plannedWorkoutRows, error: plannedWorkoutError } = await supabase
+        .from('planned_workouts')
+        .select('id, planned_date, workout_templates(name)')
+        .gte('planned_date', activeMicrocycleEntry.row.start_date)
+        .lte('planned_date', activeMicrocycleEntry.row.end_date)
+        .order('planned_date', { ascending: true });
+
+      if (plannedWorkoutError) {
+        setErrorMsg(`Failed to load planned workouts: ${plannedWorkoutError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const normalizedPlannedWorkouts: PlannedWorkout[] = ((plannedWorkoutRows || []) as PlannedWorkoutRow[]).map((row) => ({
+        id: row.id,
+        plannedDate: row.planned_date,
+        workoutName: Array.isArray(row.workout_templates)
+          ? row.workout_templates[0]?.name || ''
+          : row.workout_templates?.name || '',
+      }));
+
+      setPlannedWorkouts(normalizedPlannedWorkouts);
       setLoading(false);
     }
 
@@ -270,6 +329,21 @@ export default function MicrocyclePage() {
     if (microcycles.length === 0) return null;
     return microcycles.find((m) => m.id === currentMicrocycleId) || microcycles[0];
   }, [currentMicrocycleId, microcycles]);
+
+  const currentMicrocycleDays = useMemo(() => {
+    if (!currentMicrocycle) return [];
+    return getDaysInRange(currentMicrocycle.startDate, currentMicrocycle.endDate);
+  }, [currentMicrocycle]);
+
+  const plannedWorkoutByDate = useMemo(() => {
+    const lookup = new Map<string, PlannedWorkout>();
+    plannedWorkouts.forEach((workout) => {
+      if (workout.workoutName && !lookup.has(workout.plannedDate)) {
+        lookup.set(workout.plannedDate, workout);
+      }
+    });
+    return lookup;
+  }, [plannedWorkouts]);
 
   if (loading) {
     return (
@@ -363,77 +437,79 @@ export default function MicrocyclePage() {
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
           <div className="mb-4 px-1">
-            <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
+            <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
+              {microcycles.map((week) => (
+                <button
+                  key={week.id}
+                  type="button"
+                  onClick={() => setCurrentMicrocycleId(week.id)}
+                  className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] transition ${
+                    currentMicrocycleId === week.id
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white/60 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  Wk {week.weekNumber}
+                </button>
+              ))}
+            </div>
+
+            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
               {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
             </h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-slate-600">
               {currentMicrocycle ? formatDateRange(currentMicrocycle.startDate, currentMicrocycle.endDate) : 'No weeks yet'}
             </p>
           </div>
 
           <div className="space-y-4">
-            {microcycles.length === 0 && (
+            {!currentMicrocycle && (
               <div className="rounded-[1.75rem] border border-slate-700/60 bg-slate-900/30 p-6 text-sm text-slate-300">
                 No microcycles found for this mesocycle.
               </div>
             )}
 
-            {microcycles.map((week) => {
-              const recoveryClass = week.isRecoveryWeek ? 'bg-slate-700/60 border-slate-600/70' : sportStyles.cardClass;
+            {currentMicrocycle && currentMicrocycleDays.map((day) => {
+              const plannedWorkout = plannedWorkoutByDate.get(day.key);
+              const isWorkoutPlanned = Boolean(plannedWorkout?.workoutName);
+              const workoutName = plannedWorkout?.workoutName || '';
 
               return (
                 <article
-                  key={week.id}
-                  className={`flex items-stretch gap-3 ${currentMicrocycleId === week.id ? '' : 'opacity-80'}`}
-                  onMouseEnter={() => setCurrentMicrocycleId(week.id)}
+                  key={day.key}
+                  className="grid grid-cols-[4.25rem_1fr] gap-3"
                 >
-                  <div className="flex w-16 flex-shrink-0 flex-col items-center justify-center rounded-[1.5rem] border border-slate-700/50 bg-slate-900/30 px-2 py-4 text-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Wk</span>
-                    <span className="mt-1 text-2xl font-black tracking-tight text-white">{week.weekNumber}</span>
+                  <div className="flex flex-col items-center justify-center rounded-[1.5rem] border border-slate-700/50 bg-slate-900/30 px-2 py-4 text-center">
+                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                      {new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day.date)}
+                    </span>
+                    <span className="mt-1 text-2xl font-black tracking-tight text-white">{day.date.getDate()}</span>
                   </div>
 
                   <div
-                    className={`flex-1 rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${recoveryClass}`}
+                    className={`rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${
+                      isWorkoutPlanned ? sportStyles.cardClass : 'border-transparent bg-transparent shadow-none'
+                    }`}
                   >
-                    <div className="flex min-h-[92px] flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
-                            {week.isRecoveryWeek ? <Plus size={18} className="text-slate-200" /> : sportStyles.icon}
+                    {isWorkoutPlanned && (
+                      <div className="flex min-h-[92px] flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
+                              {sportStyles.icon}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-200/90">
+                                {sportStyles.label}
+                              </p>
+                              <h2 className="mt-1 text-xl font-black uppercase tracking-tight text-white">
+                                {workoutName}
+                              </h2>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-200/90">
-                              {week.isRecoveryWeek ? 'RECOVERY' : sportStyles.label}
-                            </p>
-                            <h2 className="mt-1 text-xl font-black uppercase tracking-tight text-white">
-                              {week.isRecoveryWeek ? 'Recovery Week' : `Training Week ${week.weekNumber}`}
-                            </h2>
-                          </div>
-                        </div>
-                        <p className="mt-3 text-sm text-slate-100/90">
-                          {formatDateRange(week.startDate, week.endDate)}
-                        </p>
-                      </div>
-
-                      <div className="grid min-w-[210px] grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-left text-sm sm:text-right">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Target h</p>
-                          <p className="mt-1 font-semibold text-white">{formatNumber(week.targetVolumeHours)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Target km</p>
-                          <p className="mt-1 font-semibold text-white">{formatNumber(week.targetDistanceKm)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Actual h</p>
-                          <p className="mt-1 font-semibold text-white">{formatNumber(week.actualVolumeHours)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Actual km</p>
-                          <p className="mt-1 font-semibold text-white">{formatNumber(week.actualDistanceKm)}</p>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </article>
               );
