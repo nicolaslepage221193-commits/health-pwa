@@ -406,6 +406,10 @@ export default function MicrocyclePage() {
   }
 
   const sportStyles = getSportStyles(macrocyclePlan.primarySport);
+  const currentMesocycleName =
+    macrocyclePlan.mesocycles.find((block) => block.isCurrent)?.name ||
+    macrocyclePlan.mesocycles[0]?.name ||
+    'Mesocycle';
 
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
@@ -429,18 +433,23 @@ export default function MicrocyclePage() {
         </header>
 
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
-          <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
+          <div className="mb-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Current Mesocycle</p>
+            <p className="mt-1 text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">{currentMesocycleName}</p>
+          </div>
+
+          <div className="flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {microcyclePlan.map((block, index) => {
               const isSelected = block.id === currentMicrocycleId;
               const isCurrentDate = block.isCurrentDate;
               const isCompleted = index < activeMicrocycleIndex;
 
               return (
-                <div key={block.id} className="flex min-w-[130px] flex-1 items-center">
+                <div key={block.id} className="flex min-w-[130px] shrink-0 items-start">
                   <button
                     type="button"
                     onClick={() => setCurrentMicrocycleId(block.id)}
-                    className="flex w-full flex-col items-center text-center"
+                    className="relative z-10 flex w-full flex-col items-center text-center"
                     aria-label={`Select microcycle week ${block.weekNumber}`}
                   >
                     <div
@@ -457,11 +466,10 @@ export default function MicrocyclePage() {
                     <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
                       Week {block.weekNumber}
                     </p>
-                    <p className="mt-1 text-[10px] text-slate-500">{formatDateRange(block.startDate, block.endDate)}</p>
                   </button>
                   {index < microcyclePlan.length - 1 && (
                     <div
-                      className={`mx-2 mt-[-28px] h-px flex-1 ${
+                      className={`mx-2 mt-4 h-px w-10 shrink-0 ${
                         index <= activeMicrocycleIndex ? 'bg-emerald-500/80' : 'bg-slate-700'
                       }`}
                     />
