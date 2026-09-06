@@ -393,15 +393,11 @@ export default function MesocyclePage() {
         </section>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Microcycles</p>
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">
             {currentMesocycle.title}
           </h2>
-          <p className="mt-2 text-sm text-slate-700">
-            Tap a microcycle to open its dedicated microplan view.
-          </p>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="mt-6 space-y-3">
             {currentMesocycle.microcycleIds.map((microcycleId, index) => {
               const microcycle = plan.microcyclesById[microcycleId];
               if (!microcycle) return null;
@@ -412,18 +408,22 @@ export default function MesocyclePage() {
                 <Link
                   key={microcycle.id}
                   href={`/plan/microcycle?microcycleId=${microcycle.id}`}
-                  className="group rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
+                  className="group flex items-center gap-4 rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
                 >
-                  <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
-                    Week {microcycle.week_number} · Microcycle {index + 1}
-                  </div>
-                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
+                  <div className="min-w-[120px] text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     {formatDateRange(microcycle.start_date, microcycle.end_date)}
-                  </h3>
-                  <p className="mt-3 text-sm text-slate-700">
-                    {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
-                  </p>
-                  <p className="mt-1 text-xs font-black uppercase tracking-[0.22em] text-[#3E8A68]">
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
+                      Week {microcycle.week_number} · Microcycle {index + 1}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
+                    </p>
+                  </div>
+
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#3E8A68]">
                     Open microplan
                   </p>
                 </Link>
