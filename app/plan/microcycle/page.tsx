@@ -40,17 +40,20 @@ type MesocycleRow = {
   start_date: string;
   end_date: string;
   macrocycle_id: string;
-};
-
-type MacrocycleRow = {
-  id: string;
-  title: string;
-  primary_sport: SportType;
+  macrocycles:
+    | {
+    title: string;
+    primary_sport: SportType;
+  }
+    | {
+    title: string;
+    primary_sport: SportType;
+  }[]
+    | null;
 };
 
 type MicrocycleRow = {
   id: string;
-  mesocycle_id: string;
   week_number: number;
   start_date: string;
   end_date: string;
@@ -59,6 +62,44 @@ type MicrocycleRow = {
   actual_volume_hours: number | null;
   actual_distance_km: number | null;
   is_recovery_week: boolean | null;
+  mesocycles:
+    | {
+    id: string;
+    title: string;
+    sequence_order: number;
+    start_date: string;
+    end_date: string;
+    macrocycle_id: string;
+    macrocycles:
+      | {
+      title: string;
+      primary_sport: SportType;
+    }
+      | {
+      title: string;
+      primary_sport: SportType;
+    }[]
+      | null;
+  }
+    | {
+    id: string;
+    title: string;
+    sequence_order: number;
+    start_date: string;
+    end_date: string;
+    macrocycle_id: string;
+    macrocycles:
+      | {
+      title: string;
+      primary_sport: SportType;
+    }
+      | {
+      title: string;
+      primary_sport: SportType;
+    }[]
+      | null;
+  }[]
+    | null;
 };
 
 function getDurationWeeks(startDate: string, endDate: string): number {
@@ -106,15 +147,12 @@ function getSportStyles(sport: SportType) {
 export default function MicrocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [warningMsg, setWarningMsg] = useState<string | null>(null);
   const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      setWarningMsg(null);
-
       if (!supabase) {
         setErrorMsg('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
         setLoading(false);
@@ -123,7 +161,7 @@ export default function MicrocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, mesocycle_id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week')
+        .select('id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week, mesocycles(id, title, sequence_order, start_date, end_date, macrocycle_id, macrocycles(title, primary_sport))')
         .order('week_number', { ascending: true });
 
       if (microcycleError) {
@@ -138,61 +176,61 @@ export default function MicrocyclePage() {
         return;
       }
 
-
-      const normalizedRows = microcycleRows as MicrocycleRow[];
-
-      const mesocycleIds = Array.from(new Set(normalizedRows.map((row) => row.mesocycle_id).filter(Boolean)));
-      if (mesocycleIds.length === 0) {
-        setErrorMsg('Microcycles are missing mesocycle_id values.');
+      if (microcycleRows.length === 0) {
+        setErrorMsg(`No microcycles found: ${JSON.stringify(microcycleRows)}`);
         setLoading(false);
         return;
       }
 
-      const { data: mesocycleRows, error: mesocycleError } = await supabase
-        .from('mesocycles')
-        .select('id, title, sequence_order, start_date, end_date, macrocycle_id')
-        .in('id', mesocycleIds)
-        .order('sequence_order', { ascending: true });
+      const normalizedRows = (microcycleRows as MicrocycleRow[]).map((row) => {
+        const mesocycle = Array.isArray(row.mesocycles) ? row.mesocycles[0] : row.mesocycles;
+        const macrocycle = mesocycle
+          ? Array.isArray(mesocycle.macrocycles)
+            ? mesocycle.macrocycles[0]
+            : mesocycle.macrocycles
+          : null;
 
-      if (mesocycleError) {
-        setErrorMsg(`Failed to load mesocycles: ${mesocycleError.message}`);
+        return {
+          row,
+          mesocycle,
+          macrocycle,
+        };
+      });
+
+      const rowsWithMesocycle = normalizedRows.filter((entry) => entry.mesocycle);
+      if (rowsWithMesocycle.length === 0) {
+        setErrorMsg('Microcycles are not linked to any mesocycle records.');
         setLoading(false);
         return;
       }
-
-      const normalizedMesocycles = mesocycleRows as MesocycleRow[];
 
       const today = new Date();
       const activeMicrocycleEntry =
-        normalizedRows.find((row) => {
-          const start = new Date(`${row.start_date}T00:00:00`);
-          const end = new Date(`${row.end_date}T23:59:59`);
+        rowsWithMesocycle.find((entry) => {
+          const start = new Date(`${entry.row.start_date}T00:00:00`);
+          const end = new Date(`${entry.row.end_date}T23:59:59`);
           return today >= start && today <= end;
-        }) || normalizedRows[0];
+        }) || rowsWithMesocycle[0];
 
-      const activeMesocycleId = activeMicrocycleEntry?.mesocycle_id || normalizedMesocycles[0].id;
-      const activeMesocycle =
-        normalizedMesocycles.find((row) => row.id === activeMesocycleId) || normalizedMesocycles[0];
+      const activeMesocycleId = activeMicrocycleEntry.mesocycle!.id;
+      const activeMacrocycle = activeMicrocycleEntry.macrocycle;
 
-      const { data: macrocycleRow, error: macrocycleError } = await supabase
-        .from('macrocycles')
-        .select('id, title, primary_sport')
-        .eq('id', activeMesocycle.macrocycle_id)
-        .maybeSingle();
+      const uniqueMesocycles = new Map<string, NonNullable<(typeof rowsWithMesocycle)[number]['mesocycle']>>();
+      rowsWithMesocycle.forEach((entry) => {
+        if (!uniqueMesocycles.has(entry.mesocycle!.id)) {
+          uniqueMesocycles.set(entry.mesocycle!.id, entry.mesocycle!);
+        }
+      });
 
-      if (macrocycleError) {
-        setErrorMsg(`Failed to load macrocycle: ${macrocycleError.message}`);
-        setLoading(false);
-        return;
-      }
-
-      const resolvedMacrocycle = macrocycleRow as MacrocycleRow | null;
+      const orderedMesocycles = Array.from(uniqueMesocycles.values()).sort(
+        (a, b) => a.sequence_order - b.sequence_order,
+      );
 
       const plan: MacrocyclePlan = {
-        id: activeMesocycle.macrocycle_id,
-        title: resolvedMacrocycle?.title || 'TRAINING PLAN',
-        primarySport: resolvedMacrocycle?.primary_sport || 'CYCLE',
-        mesocycles: normalizedMesocycles.map((row) => ({
+        id: activeMicrocycleEntry.mesocycle!.macrocycle_id,
+        title: activeMacrocycle?.title || 'TRAINING PLAN',
+        primarySport: activeMacrocycle?.primary_sport || 'CYCLE',
+        mesocycles: orderedMesocycles.map((row) => ({
           id: row.id,
           name: row.title,
           durationWeeks: getDurationWeeks(row.start_date, row.end_date),
@@ -200,9 +238,9 @@ export default function MicrocyclePage() {
         })),
       };
 
-      const mappedMicrocycles: Microcycle[] = normalizedRows
-        .filter((row) => row.mesocycle_id === activeMesocycleId)
-        .map((row) => ({
+      const mappedMicrocycles: Microcycle[] = rowsWithMesocycle
+        .filter((entry) => entry.mesocycle!.id === activeMesocycleId)
+        .map(({ row }) => ({
         id: row.id,
         weekNumber: row.week_number,
         startDate: row.start_date,
@@ -213,27 +251,10 @@ export default function MicrocyclePage() {
         actualDistanceKm: row.actual_distance_km ?? 0,
         isRecoveryWeek: row.is_recovery_week ?? false,
       }));
-
-      const fallbackMicrocycles: Microcycle[] = normalizedRows.map((row) => ({
-        id: row.id,
-        weekNumber: row.week_number,
-        startDate: row.start_date,
-        endDate: row.end_date,
-        targetVolumeHours: row.target_volume_hours ?? 0,
-        targetDistanceKm: row.target_distance_km ?? 0,
-        actualVolumeHours: row.actual_volume_hours ?? 0,
-        actualDistanceKm: row.actual_distance_km ?? 0,
-        isRecoveryWeek: row.is_recovery_week ?? false,
-      }));
-
-      const resolvedMicrocycles = mappedMicrocycles.length > 0 ? mappedMicrocycles : fallbackMicrocycles;
-      if (mappedMicrocycles.length === 0 && fallbackMicrocycles.length > 0) {
-        setWarningMsg('Loaded microcycles, but none matched the resolved active mesocycle. Showing all fetched microcycles.');
-      }
 
       setMacrocyclePlan(plan);
-      setMicrocycles(resolvedMicrocycles);
-      setCurrentMicrocycleId(activeMicrocycleEntry?.id || resolvedMicrocycles[0]?.id || null);
+      setMicrocycles(mappedMicrocycles);
+      setCurrentMicrocycleId(activeMicrocycleEntry.row.id || mappedMicrocycles[0]?.id || null);
       setLoading(false);
     }
 
@@ -341,12 +362,6 @@ export default function MicrocyclePage() {
         </section>
 
         <section className="mt-6">
-          {warningMsg && (
-            <div className="mb-4 rounded-2xl border border-amber-700/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">
-              {warningMsg}
-            </div>
-          )}
-
           <div className="mb-4 px-1">
             <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
               {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
@@ -357,6 +372,11 @@ export default function MicrocyclePage() {
           </div>
 
           <div className="space-y-4">
+            {microcycles.length === 0 && (
+              <div className="rounded-[1.75rem] border border-slate-700/60 bg-slate-900/30 p-6 text-sm text-slate-300">
+                No microcycles found for this mesocycle.
+              </div>
+            )}
 
             {microcycles.map((week) => {
               const recoveryClass = week.isRecoveryWeek ? 'bg-slate-700/60 border-slate-600/70' : sportStyles.cardClass;
