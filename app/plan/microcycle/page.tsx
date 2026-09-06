@@ -21,6 +21,14 @@ interface MacrocyclePlan {
   mesocycles: MesocycleBlock[];
 }
 
+interface MicrocycleBlock {
+  id: string;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+}
+
 interface Microcycle {
   id: string;
   weekNumber: number;
@@ -187,6 +195,7 @@ export default function MicrocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [macrocyclePlan, setMacrocyclePlan] = useState<MacrocyclePlan | null>(null);
+  const [microcyclePlan, setMicrocyclePlan] = useState<MicrocycleBlock[]>([]);
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
   const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
@@ -292,7 +301,16 @@ export default function MicrocyclePage() {
         isRecoveryWeek: row.is_recovery_week ?? false,
       }));
 
+      const microcycleBlocks: MicrocycleBlock[] = mappedMicrocycles.map((microcycle) => ({
+        id: microcycle.id,
+        weekNumber: microcycle.weekNumber,
+        startDate: microcycle.startDate,
+        endDate: microcycle.endDate,
+        isCurrent: microcycle.id === activeMicrocycleEntry.row.id,
+      }));
+
       setMacrocyclePlan(plan);
+      setMicrocyclePlan(microcycleBlocks);
       setMicrocycles(mappedMicrocycles);
       setCurrentMicrocycleId(activeMicrocycleEntry.row.id || mappedMicrocycles[0]?.id || null);
 
@@ -330,6 +348,11 @@ export default function MicrocyclePage() {
     if (!macrocyclePlan) return -1;
     return macrocyclePlan.mesocycles.findIndex((block) => block.isCurrent);
   }, [macrocyclePlan]);
+
+  const activeMicrocycleIndex = useMemo(() => {
+    if (microcyclePlan.length === 0) return -1;
+    return microcyclePlan.findIndex((block) => block.isCurrent);
+  }, [microcyclePlan]);
 
   const currentMicrocycle = useMemo(() => {
     if (microcycles.length === 0) return null;
@@ -396,9 +419,9 @@ export default function MicrocyclePage() {
 
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
           <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
-            {macrocyclePlan.mesocycles.map((block, index) => {
+            {microcyclePlan.map((block, index) => {
               const isActive = block.isCurrent;
-              const isCompleted = index < activeMesocycleIndex;
+              const isCompleted = index < activeMicrocycleIndex;
 
               return (
                 <div key={block.id} className="flex min-w-[130px] flex-1 items-center">
@@ -412,17 +435,17 @@ export default function MicrocyclePage() {
                             : 'border-slate-600 bg-slate-800/80 text-slate-400'
                       }`}
                     >
-                      {index + 1}
+                      {block.weekNumber}
                     </div>
                     <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isActive ? 'text-emerald-300' : 'text-slate-400'}`}>
-                      {block.name}
+                      Week {block.weekNumber}
                     </p>
-                    <p className="mt-1 text-[10px] text-slate-500">{block.durationWeeks} wks</p>
+                    <p className="mt-1 text-[10px] text-slate-500">{formatDateRange(block.startDate, block.endDate)}</p>
                   </div>
-                  {index < macrocyclePlan.mesocycles.length - 1 && (
+                  {index < microcyclePlan.length - 1 && (
                     <div
                       className={`mx-2 mt-[-28px] h-px flex-1 ${
-                        index <= activeMesocycleIndex ? 'bg-emerald-500/80' : 'bg-slate-700'
+                        index <= activeMicrocycleIndex ? 'bg-emerald-500/80' : 'bg-slate-700'
                       }`}
                     />
                   )}
@@ -432,7 +455,7 @@ export default function MicrocyclePage() {
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-2">
-            {macrocyclePlan.mesocycles.map((block) => (
+            {microcyclePlan.map((block) => (
               <span
                 key={`${block.id}-dot`}
                 className={`h-2.5 w-2.5 rounded-full ${block.isCurrent ? 'bg-emerald-400' : 'bg-slate-600'}`}
@@ -443,23 +466,6 @@ export default function MicrocyclePage() {
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
           <div className="mb-4 px-1">
-            <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
-              {microcycles.map((week) => (
-                <button
-                  key={week.id}
-                  type="button"
-                  onClick={() => setCurrentMicrocycleId(week.id)}
-                  className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] transition ${
-                    currentMicrocycleId === week.id
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white/60 text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  Wk {week.weekNumber}
-                </button>
-              ))}
-            </div>
-
             <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
               {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
             </h1>
