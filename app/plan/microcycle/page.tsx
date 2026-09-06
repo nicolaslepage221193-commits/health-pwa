@@ -165,12 +165,6 @@ export default function MicrocyclePage() {
         return;
       }
 
-      if (!mesocycleRows || mesocycleRows.length === 0) {
-        setErrorMsg('No linked mesocycles found for fetched microcycles.');
-        setLoading(false);
-        return;
-      }
-
       const normalizedMesocycles = mesocycleRows as MesocycleRow[];
 
       const today = new Date();
