@@ -26,7 +26,7 @@ interface MicrocycleBlock {
   weekNumber: number;
   startDate: string;
   endDate: string;
-  isCurrent: boolean;
+  isCurrentDate: boolean;
 }
 
 interface Microcycle {
@@ -306,23 +306,35 @@ export default function MicrocyclePage() {
         weekNumber: microcycle.weekNumber,
         startDate: microcycle.startDate,
         endDate: microcycle.endDate,
-        isCurrent: microcycle.id === activeMicrocycleEntry.row.id,
+        isCurrentDate: microcycle.id === activeMicrocycleEntry.row.id,
       }));
 
       setMacrocyclePlan(plan);
       setMicrocyclePlan(microcycleBlocks);
       setMicrocycles(mappedMicrocycles);
       setCurrentMicrocycleId(activeMicrocycleEntry.row.id || mappedMicrocycles[0]?.id || null);
+      setLoading(false);
+    }
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    async function fetchPlannedWorkoutsForSelectedMicrocycle() {
+      if (!supabase || !currentMicrocycleId) {
+        setPlannedWorkouts([]);
+        return;
+      }
 
       const { data: plannedWorkoutRows, error: plannedWorkoutError } = await supabase
         .from('planned_workouts')
         .select('id, microcycle_id, scheduled_date, title, sport, target_duration_minutes, target_distance_km, target_rpe, workout_type')
-        .eq('microcycle_id', activeMicrocycleEntry.row.id)
+        .eq('microcycle_id', currentMicrocycleId)
         .order('scheduled_date', { ascending: true });
 
       if (plannedWorkoutError) {
         setErrorMsg(`Failed to load planned workouts: ${plannedWorkoutError.message}`);
-        setLoading(false);
+        setPlannedWorkouts([]);
         return;
       }
 
@@ -338,11 +350,10 @@ export default function MicrocyclePage() {
       }));
 
       setPlannedWorkouts(normalizedPlannedWorkouts);
-      setLoading(false);
     }
 
-    fetchData();
-  }, []);
+    fetchPlannedWorkoutsForSelectedMicrocycle();
+  }, [currentMicrocycleId]);
 
   const activeMesocycleIndex = useMemo(() => {
     if (!macrocyclePlan) return -1;
@@ -351,8 +362,8 @@ export default function MicrocyclePage() {
 
   const activeMicrocycleIndex = useMemo(() => {
     if (microcyclePlan.length === 0) return -1;
-    return microcyclePlan.findIndex((block) => block.isCurrent);
-  }, [microcyclePlan]);
+    return microcyclePlan.findIndex((block) => block.id === currentMicrocycleId);
+  }, [microcyclePlan, currentMicrocycleId]);
 
   const currentMicrocycle = useMemo(() => {
     if (microcycles.length === 0) return null;
@@ -420,28 +431,34 @@ export default function MicrocyclePage() {
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
           <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
             {microcyclePlan.map((block, index) => {
-              const isActive = block.isCurrent;
+              const isSelected = block.id === currentMicrocycleId;
+              const isCurrentDate = block.isCurrentDate;
               const isCompleted = index < activeMicrocycleIndex;
 
               return (
                 <div key={block.id} className="flex min-w-[130px] flex-1 items-center">
-                  <div className="flex w-full flex-col items-center text-center">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMicrocycleId(block.id)}
+                    className="flex w-full flex-col items-center text-center"
+                    aria-label={`Select microcycle week ${block.weekNumber}`}
+                  >
                     <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight ${
-                        isActive
-                          ? 'border-emerald-400 bg-emerald-500 text-slate-950'
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
+                        isCurrentDate
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-300'
                           : isCompleted
                             ? 'border-teal-500/80 bg-teal-500/25 text-teal-200'
                             : 'border-slate-600 bg-slate-800/80 text-slate-400'
-                      }`}
+                      } ${isSelected ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900' : ''}`}
                     >
                       {block.weekNumber}
                     </div>
-                    <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isActive ? 'text-emerald-300' : 'text-slate-400'}`}>
+                    <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
                       Week {block.weekNumber}
                     </p>
                     <p className="mt-1 text-[10px] text-slate-500">{formatDateRange(block.startDate, block.endDate)}</p>
-                  </div>
+                  </button>
                   {index < microcyclePlan.length - 1 && (
                     <div
                       className={`mx-2 mt-[-28px] h-px flex-1 ${
@@ -458,7 +475,7 @@ export default function MicrocyclePage() {
             {microcyclePlan.map((block) => (
               <span
                 key={`${block.id}-dot`}
-                className={`h-2.5 w-2.5 rounded-full ${block.isCurrent ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                className={`h-2.5 w-2.5 rounded-full ${block.id === currentMicrocycleId ? 'bg-emerald-400' : 'bg-slate-600'}`}
               />
             ))}
           </div>
