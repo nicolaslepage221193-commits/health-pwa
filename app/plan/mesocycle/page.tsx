@@ -31,8 +31,14 @@ type MicrocycleRow = {
   start_date: string;
   end_date: string;
   length_days: number | null;
-  planned_workout_ids: string[] | null;
+  scheduled_workouts: unknown;
   is_recovery_week: boolean | null;
+};
+
+type ScheduledWorkoutEntry = {
+  dayNumber: number;
+  workoutId: string;
+  notes?: string;
 };
 
 interface MesocycleSummary {
@@ -58,6 +64,33 @@ function formatDateRange(startDate: string, endDate: string): string {
   const end = new Date(`${endDate}T00:00:00`);
   const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
   return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
+
+function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const record = item as Record<string, unknown>;
+      const dayNumber = Number(record.day_number);
+      const workoutId = typeof record.workout_id === 'string' ? record.workout_id.trim() : '';
+      const notes = typeof record.notes === 'string' ? record.notes : undefined;
+
+      if (!Number.isInteger(dayNumber) || dayNumber < 1 || !workoutId) return null;
+
+      const entry: ScheduledWorkoutEntry = {
+        dayNumber,
+        workoutId,
+      };
+
+      if (notes) {
+        entry.notes = notes;
+      }
+
+      return entry;
+    })
+    .filter((entry): entry is ScheduledWorkoutEntry => Boolean(entry));
 }
 
 export default function MesocyclePage() {
@@ -143,7 +176,7 @@ export default function MesocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, week_number, start_date, end_date, length_days, planned_workout_ids, is_recovery_week')
+        .select('id, week_number, start_date, end_date, length_days, scheduled_workouts, is_recovery_week')
         .in('id', allMicrocycleIds);
 
       if (microcycleError) {
@@ -176,7 +209,7 @@ export default function MesocyclePage() {
 
       const activeMesocycleWorkoutCount = activeMesocycle.microcycleIds.reduce((sum, microcycleId) => {
         const row = microcycleLookup.get(microcycleId);
-        return sum + (row?.planned_workout_ids?.length || 0);
+        return sum + parseScheduledWorkouts(row?.scheduled_workouts).length;
       }, 0);
 
       setPlan({

@@ -65,7 +65,7 @@ The `mesocycles` table splits a macrocycle into distinct training blocks and tra
 
 ### C. `microcycles`
 
-The `microcycles` table defines specific training weeks or blocks, tracking explicit duration (`length_days`) and references to planned workouts.
+The `microcycles` table defines specific training weeks or blocks, tracking explicit duration (`length_days`) and scheduling workout templates via JSONB.
 
 | Field Name | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
@@ -78,7 +78,7 @@ The `microcycles` table defines specific training weeks or blocks, tracking expl
 | `target_distance_km` | `NUMERIC(6,2)` | Default `0.00` | Target training distance in km. |
 | `actual_volume_hours`| `NUMERIC(6,2)` | Default `0.00` | Completed training hours. |
 | `actual_distance_km` | `NUMERIC(6,2)` | Default `0.00` | Completed training distance in km. |
-| `planned_workout_ids`| `UUID[]` | Default `'{}'` | Array of Planned Workout IDs assigned to this microcycle. |
+| `scheduled_workouts` | `JSONB` | Default `'[]'::jsonb` | JSONB array mapping workout IDs to relative day numbers (`day_number`, `workout_id`, optional `notes`). |
 | `is_recovery_week` | `BOOLEAN` | Default `FALSE` | Flag indicating a deload/recovery week. |
 | `created_at` | `TIMESTAMPTZ` | Default `NOW()` | Record creation timestamp. |
 | `updated_at` | `TIMESTAMPTZ` | Default `NOW()` | Record last modification timestamp. |
@@ -87,30 +87,44 @@ The `microcycles` table defines specific training weeks or blocks, tracking expl
 
 ### D. `planned_workouts`
 
-The `planned_workouts` table stores specific daily workout sessions.
+The `planned_workouts` table acts as a template/workout library containing reusable exercise routines or on-the-go sessions.
 
 | Field Name | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `id` | `UUID` | `PRIMARY KEY`, Default `uuid_generate_v4()` | Unique identifier for the workout. |
-| `scheduled_date` | `DATE` | `NOT NULL` | Calendar date scheduled for execution. |
+| `id` | `UUID` | `PRIMARY KEY`, Default `uuid_generate_v4()` | Unique identifier for the workout template. |
 | `title` | `TEXT` | `NOT NULL` | Workout name (e.g., *"Sweet Spot Intervals (3x12m)"*). |
-| `description` | `TEXT` | Optional | Session structure, intervals, and execution instructions. |
+| `description` | `TEXT` | Optional | Interval breakdown, power zones, and execution instructions. |
 | `sport` | `sport_type` | `NOT NULL`, Default `'CYCLE'` | Discipline (`RUN`, `CYCLE`, or `SWIM`). |
-| `target_duration_minutes` | `INT` | `NOT NULL`, Default `60` | Target duration in minutes. |
-| `target_distance_km` | `NUMERIC(6,2)` | Optional | Target distance in kilometers. |
-| `target_rpe` | `INT` | Check (`1` to `10`) | Target Rate of Perceived Exertion. |
-| `workout_type` | `TEXT` | Optional | Intensity label (e.g., `'Recovery'`, `'Threshold'`, `'VO2 Max'`). |
+| `target_duration_minutes` | `INT` | `NOT NULL`, Default `60` | Duration in minutes. |
+| `target_distance_km` | `NUMERIC(6,2)` | Optional | Estimated target distance in kilometers. |
+| `target_rpe` | `INT` | Check (`1` to `10`) | Target Rate of Perceived Exertion scale. |
+| `workout_type` | `TEXT` | Optional | Training strain type (e.g., `'Recovery'`, `'Threshold'`, `'VO2 Max'`). |
+| `category` | `TEXT` | Default `'General'` | Grouping classification (e.g., `'Aerobic Base'`, `'Neuromuscular'`). |
+| `tags` | `TEXT[]` | Default `'{}'` | Search/filter keywords (e.g., `['sweet_spot', 'intervals']`). |
+| `estimated_tss` | `INT` | Default `0` | Estimated Training Stress Score for workload calculations. |
 | `created_at` | `TIMESTAMPTZ` | Default `NOW()` | Record creation timestamp. |
 | `updated_at` | `TIMESTAMPTZ` | Default `NOW()` | Record last modification timestamp. |
 
 ---
 
-## 4. Array Sequencing & Duration Logic
+## 4. Scheduling & Duration Calculation Logic
 
-1. **Implicit Sequence Ordering:** Sequence order is determined by array index position. The array elements in `macrocycles.mesocycle_ids` and `mesocycles.microcycle_ids` preserve strict 1-based order when queried (e.g., via `WITH ORDINALITY`).
-2. **Dynamic Duration Calculation:** Mesocycle `end_date` and `microcycle_count` are derived by summing `length_days` across all array-referenced microcycles:
-   $$\text{Mesocycle end\_date} = \text{start\_date} + \left( \sum \text{microcycles.length\_days} \right) - 1\text{ day}$$
+### Relative Day Mapping in Microcycles
+`microcycles.scheduled_workouts` stores JSONB objects defining relative execution days within the block:
 
+```json
+[
+  {
+    "day_number": 2,
+    "workout_id": "c7a8400a-2895-4ebf-8898-1e43e74b335a",
+    "notes": "Perform in the morning before breakfast"
+  },
+  {
+    "day_number": 6,
+    "workout_id": "8a31e34b-32bc-4401-b51c-0e86b2089402",
+    "notes": "Outdoor long ride"
+  }
+]
 ---
 
 ## 5. Security & Access Control (Row Level Security)
@@ -119,4 +133,4 @@ All tables enforce **Supabase Row Level Security (RLS)** using top-down array co
 - **`macrocycles`**: Verified directly via `auth.uid() = user_id`.
 - **`mesocycles`**: Verified if `mesocycles.id = ANY(macrocycles.mesocycle_ids)` for a macrocycle owned by `auth.uid()`.
 - **`microcycles`**: Verified if `microcycles.id = ANY(mesocycles.microcycle_ids)` traversing down from user-owned macrocycles.
-- **`planned_workouts`**: Verified if `planned_workouts.id = ANY(microcycles.planned_workout_ids)` traversing down from user-owned macrocycles.
+- **planned_workouts: Verified if planned_workouts.id matches (item->>'workout_id')::UUID within microcycles.scheduled_workouts traversing down from user-owned macrocycles.
