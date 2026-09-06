@@ -36,7 +36,12 @@ interface Microcycle {
 interface PlannedWorkout {
   id: string;
   plannedDate: string;
-  workoutName: string;
+  title: string;
+  sport: SportType;
+  targetDurationMinutes: number;
+  targetDistanceKm: number | null;
+  targetRpe: number | null;
+  workoutType: string | null;
 }
 
 type MesocycleRow = {
@@ -110,15 +115,14 @@ type MicrocycleRow = {
 
 type PlannedWorkoutRow = {
   id: string;
-  planned_date: string;
-  workout_templates:
-    | {
-        name: string;
-      }
-    | {
-        name: string;
-      }[]
-    | null;
+  microcycle_id: string;
+  scheduled_date: string;
+  title: string;
+  sport: SportType;
+  target_duration_minutes: number;
+  target_distance_km: number | null;
+  target_rpe: number | null;
+  workout_type: string | null;
 };
 
 function getDurationWeeks(startDate: string, endDate: string): number {
@@ -294,10 +298,9 @@ export default function MicrocyclePage() {
 
       const { data: plannedWorkoutRows, error: plannedWorkoutError } = await supabase
         .from('planned_workouts')
-        .select('id, planned_date, workout_templates(name)')
-        .gte('planned_date', activeMicrocycleEntry.row.start_date)
-        .lte('planned_date', activeMicrocycleEntry.row.end_date)
-        .order('planned_date', { ascending: true });
+        .select('id, microcycle_id, scheduled_date, title, sport, target_duration_minutes, target_distance_km, target_rpe, workout_type')
+        .eq('microcycle_id', activeMicrocycleEntry.row.id)
+        .order('scheduled_date', { ascending: true });
 
       if (plannedWorkoutError) {
         setErrorMsg(`Failed to load planned workouts: ${plannedWorkoutError.message}`);
@@ -307,10 +310,13 @@ export default function MicrocyclePage() {
 
       const normalizedPlannedWorkouts: PlannedWorkout[] = ((plannedWorkoutRows || []) as PlannedWorkoutRow[]).map((row) => ({
         id: row.id,
-        plannedDate: row.planned_date,
-        workoutName: Array.isArray(row.workout_templates)
-          ? row.workout_templates[0]?.name || ''
-          : row.workout_templates?.name || '',
+        plannedDate: row.scheduled_date,
+        title: row.title,
+        sport: row.sport,
+        targetDurationMinutes: row.target_duration_minutes,
+        targetDistanceKm: row.target_distance_km,
+        targetRpe: row.target_rpe,
+        workoutType: row.workout_type,
       }));
 
       setPlannedWorkouts(normalizedPlannedWorkouts);
@@ -338,7 +344,7 @@ export default function MicrocyclePage() {
   const plannedWorkoutByDate = useMemo(() => {
     const lookup = new Map<string, PlannedWorkout>();
     plannedWorkouts.forEach((workout) => {
-      if (workout.workoutName && !lookup.has(workout.plannedDate)) {
+      if (workout.title && !lookup.has(workout.plannedDate)) {
         lookup.set(workout.plannedDate, workout);
       }
     });
@@ -471,8 +477,15 @@ export default function MicrocyclePage() {
 
             {currentMicrocycle && currentMicrocycleDays.map((day) => {
               const plannedWorkout = plannedWorkoutByDate.get(day.key);
-              const isWorkoutPlanned = Boolean(plannedWorkout?.workoutName);
-              const workoutName = plannedWorkout?.workoutName || '';
+              const isWorkoutPlanned = Boolean(plannedWorkout?.title);
+              const workoutName = plannedWorkout?.title || '';
+              const workoutStyles = plannedWorkout ? getSportStyles(plannedWorkout.sport) : null;
+              const workoutSummaryParts = [
+                plannedWorkout?.workoutType,
+                plannedWorkout ? `${plannedWorkout.targetDurationMinutes}m` : null,
+                plannedWorkout?.targetDistanceKm ? `${plannedWorkout.targetDistanceKm} km` : null,
+                plannedWorkout?.targetRpe ? `RPE ${plannedWorkout.targetRpe}` : null,
+              ].filter(Boolean);
 
               return (
                 <article
@@ -488,7 +501,7 @@ export default function MicrocyclePage() {
 
                   <div
                     className={`rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${
-                      isWorkoutPlanned ? sportStyles.cardClass : 'border-transparent bg-transparent shadow-none'
+                      isWorkoutPlanned ? workoutStyles?.cardClass || sportStyles.cardClass : 'border-transparent bg-transparent shadow-none'
                     }`}
                   >
                     {isWorkoutPlanned && (
@@ -496,15 +509,20 @@ export default function MicrocyclePage() {
                         <div>
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
-                              {sportStyles.icon}
+                              {workoutStyles?.icon || sportStyles.icon}
                             </div>
                             <div>
                               <p className="text-[11px] font-black uppercase tracking-[0.35em] text-slate-200/90">
-                                {sportStyles.label}
+                                {workoutStyles?.label || sportStyles.label}
                               </p>
                               <h2 className="mt-1 text-xl font-black uppercase tracking-tight text-white">
                                 {workoutName}
                               </h2>
+                              {workoutSummaryParts.length > 0 && (
+                                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-100/80">
+                                  {workoutSummaryParts.join(' • ')}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
