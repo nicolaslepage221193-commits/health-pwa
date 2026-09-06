@@ -260,14 +260,14 @@ export default function MesocyclePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-12 pt-8 sm:px-6">
-        <header className="mt-6 rounded-[2rem] bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
-          <div className="flex items-start gap-4">
+        <header className="mt-6 rounded-[2rem] bg-transparent p-5">
+          <div className="flex items-center gap-4">
             <Link
               href="/plan"
               aria-label="Back to plan"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-white transition hover:text-emerald-200"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-transparent text-white transition hover:text-emerald-200"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={32} />
             </Link>
             <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
