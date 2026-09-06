@@ -1,30 +1,250 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowLeft, Gauge, Layers3, Waves } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../supabase';
 
-const blocks = [
-  {
-    name: 'Hypertrophy Block',
-    span: '4-6 weeks',
-    emphasis: 'High volume, moderate intensity, exercise variety, and local muscular endurance.',
-  },
-  {
-    name: 'Strength Block',
-    span: '4-6 weeks',
-    emphasis: 'Lower reps, heavier loading, fewer main lifts, and clearer recovery constraints.',
-  },
-  {
-    name: 'Power Block',
-    span: '3-4 weeks',
-    emphasis: 'Explosive work, fast intent, reduced fatigue, and more specific output targets.',
-  },
-  {
-    name: 'Deload Block',
-    span: '1 week',
-    emphasis: 'Drop fatigue while preserving motor patterns and readiness for the next block.',
-  },
-];
+type MesocycleFocus = 'BASE' | 'BUILD' | 'PEAK' | 'TAPER' | 'RECOVERY' | 'TRANSITION';
+
+type MacrocycleRow = {
+  id: string;
+  title: string;
+  mesocycle_ids: string[] | null;
+  start_date: string;
+  end_date: string;
+};
+
+type MesocycleRow = {
+  id: string;
+  title: string;
+  focus: MesocycleFocus;
+  microcycle_ids: string[] | null;
+};
+
+type MicrocycleRow = {
+  id: string;
+  week_number: number;
+  is_recovery_week: boolean | null;
+};
+
+type PlannedWorkoutRow = {
+  id: string;
+  microcycle_id: string;
+  scheduled_date: string;
+};
+
+interface MesocycleSummary {
+  id: string;
+  title: string;
+  focus: MesocycleFocus;
+  microcycleIds: string[];
+}
+
+interface MesocyclePlan {
+  macrocycleTitle: string;
+  mesocycles: MesocycleSummary[];
+  activeMesocycleId: string;
+  activeMesocycleWorkoutCount: number;
+  activeMesocycleRecoveryWeeks: number;
+}
+
+function formatDateRange(startDate: string, endDate: string): string {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
 
 export default function MesocyclePage() {
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [plan, setPlan] = useState<MesocyclePlan | null>(null);
+
+  useEffect(() => {
+    async function fetchMesocyclePlan() {
+      if (!supabase) {
+        setErrorMsg('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+        setLoading(false);
+        return;
+      }
+
+      const { data: macrocycleRows, error: macrocycleError } = await supabase
+        .from('macrocycles')
+        .select('id, title, mesocycle_ids, start_date, end_date')
+        .order('start_date', { ascending: true });
+
+      if (macrocycleError) {
+        setErrorMsg(`Failed to load macrocycles: ${macrocycleError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!macrocycleRows || macrocycleRows.length === 0) {
+        setErrorMsg('No macrocycles found.');
+        setLoading(false);
+        return;
+      }
+
+      const today = new Date();
+      const typedMacrocycles = macrocycleRows as MacrocycleRow[];
+      const activeMacrocycle =
+        typedMacrocycles.find((row) => {
+          const start = new Date(`${row.start_date}T00:00:00`);
+          const end = new Date(`${row.end_date}T23:59:59`);
+          return today >= start && today <= end;
+        }) || typedMacrocycles[0];
+
+      const mesocycleIds = activeMacrocycle.mesocycle_ids || [];
+      if (mesocycleIds.length === 0) {
+        setErrorMsg('The selected macrocycle has no mesocycles.');
+        setLoading(false);
+        return;
+      }
+
+      const { data: mesocycleRows, error: mesocycleError } = await supabase
+        .from('mesocycles')
+        .select('id, title, focus, microcycle_ids')
+        .in('id', mesocycleIds);
+
+      if (mesocycleError) {
+        setErrorMsg(`Failed to load mesocycles: ${mesocycleError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const mesocycleLookup = new Map<string, MesocycleRow>(((mesocycleRows || []) as MesocycleRow[]).map((row) => [row.id, row]));
+      const orderedMesocycles = mesocycleIds
+        .map((id) => mesocycleLookup.get(id))
+        .filter((row): row is MesocycleRow => Boolean(row))
+        .map((row) => ({
+          id: row.id,
+          title: row.title,
+          focus: row.focus,
+          microcycleIds: row.microcycle_ids || [],
+        }));
+
+      if (orderedMesocycles.length === 0) {
+        setErrorMsg('No linked mesocycle records could be loaded for this macrocycle.');
+        setLoading(false);
+        return;
+      }
+
+      const allMicrocycleIds = Array.from(
+        new Set(orderedMesocycles.flatMap((mesocycle) => mesocycle.microcycleIds)),
+      );
+
+      const { data: microcycleRows, error: microcycleError } = await supabase
+        .from('microcycles')
+        .select('id, week_number, is_recovery_week')
+        .in('id', allMicrocycleIds);
+
+      if (microcycleError) {
+        setErrorMsg(`Failed to load microcycles: ${microcycleError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const { data: plannedWorkoutRows, error: plannedWorkoutError } = await supabase
+        .from('planned_workouts')
+        .select('id, microcycle_id, scheduled_date')
+        .in('microcycle_id', allMicrocycleIds)
+        .order('scheduled_date', { ascending: true });
+
+      if (plannedWorkoutError) {
+        setErrorMsg(`Failed to load planned workouts: ${plannedWorkoutError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const workoutsByMicrocycle = new Map<string, PlannedWorkoutRow[]>();
+      ((plannedWorkoutRows || []) as PlannedWorkoutRow[]).forEach((row) => {
+        const current = workoutsByMicrocycle.get(row.microcycle_id) || [];
+        current.push(row);
+        workoutsByMicrocycle.set(row.microcycle_id, current);
+      });
+
+      const dateRangeByMicrocycle = new Map<string, { startDate: string | null; endDate: string | null }>();
+      allMicrocycleIds.forEach((microcycleId) => {
+        const workouts = workoutsByMicrocycle.get(microcycleId) || [];
+        if (workouts.length === 0) {
+          dateRangeByMicrocycle.set(microcycleId, { startDate: null, endDate: null });
+          return;
+        }
+
+        const sortedDates = workouts
+          .map((w) => w.scheduled_date)
+          .sort((a, b) => new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime());
+
+        dateRangeByMicrocycle.set(microcycleId, {
+          startDate: sortedDates[0],
+          endDate: sortedDates[sortedDates.length - 1],
+        });
+      });
+
+      const activeMicrocycleId = allMicrocycleIds.find((microcycleId) => {
+        const range = dateRangeByMicrocycle.get(microcycleId);
+        if (!range?.startDate || !range.endDate) return false;
+        const start = new Date(`${range.startDate}T00:00:00`);
+        const end = new Date(`${range.endDate}T23:59:59`);
+        return today >= start && today <= end;
+      });
+
+      const activeMesocycleId =
+        orderedMesocycles.find((mesocycle) =>
+          activeMicrocycleId ? mesocycle.microcycleIds.includes(activeMicrocycleId) : false,
+        )?.id || orderedMesocycles[0].id;
+
+      const microcycleLookup = new Map<string, MicrocycleRow>(((microcycleRows || []) as MicrocycleRow[]).map((row) => [row.id, row]));
+      const activeMesocycle = orderedMesocycles.find((mesocycle) => mesocycle.id === activeMesocycleId) || orderedMesocycles[0];
+
+      const activeMesocycleRecoveryWeeks = activeMesocycle.microcycleIds.reduce((sum, microcycleId) => {
+        const row = microcycleLookup.get(microcycleId);
+        return sum + (row?.is_recovery_week ? 1 : 0);
+      }, 0);
+
+      const activeMesocycleWorkoutCount = activeMesocycle.microcycleIds.reduce((sum, microcycleId) => {
+        return sum + (workoutsByMicrocycle.get(microcycleId)?.length || 0);
+      }, 0);
+
+      setPlan({
+        macrocycleTitle: activeMacrocycle.title,
+        mesocycles: orderedMesocycles,
+        activeMesocycleId,
+        activeMesocycleWorkoutCount,
+        activeMesocycleRecoveryWeeks,
+      });
+      setLoading(false);
+    }
+
+    fetchMesocyclePlan();
+  }, []);
+
+  const activeMesocycle = useMemo(() => {
+    if (!plan) return null;
+    return plan.mesocycles.find((mesocycle) => mesocycle.id === plan.activeMesocycleId) || plan.mesocycles[0] || null;
+  }, [plan]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
+        <div className="mx-auto max-w-5xl rounded-[2.5rem] border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm md:p-12">
+          Loading mesocycle data...
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMsg || !plan || !activeMesocycle) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
+        <div className="mx-auto max-w-5xl rounded-[2.5rem] border border-red-200 bg-red-50 p-8 text-sm text-red-700 shadow-sm md:p-12">
+          {errorMsg || 'Unable to load mesocycle data.'}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
       <div className="mx-auto max-w-5xl space-y-8">
@@ -42,10 +262,10 @@ export default function MesocyclePage() {
             <span className="text-[11px] font-black uppercase tracking-[0.35em]">Mesocycle</span>
           </div>
           <h1 className="mt-5 text-4xl font-black uppercase tracking-tight text-slate-900 md:text-6xl md:leading-[0.9]">
-            Training blocks with a single dominant adaptation target.
+            {activeMesocycle.title}
           </h1>
           <p className="mt-5 max-w-3xl text-sm font-medium text-slate-600 md:text-base">
-            A mesocycle usually spans several weeks and organizes overload around one main theme. It is long enough to create change and short enough to pivot when the response is poor.
+            {plan.macrocycleTitle} | Focus: {activeMesocycle.focus}
           </p>
         </header>
 
@@ -53,35 +273,37 @@ export default function MesocyclePage() {
           <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <Gauge className="text-orange-500" size={24} />
             <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Load Strategy</h2>
-            <p className="mt-3 text-sm text-slate-600">
-              Decide whether the block progresses mainly through volume, intensity, density, or technical specificity.
-            </p>
+            <p className="mt-3 text-sm text-slate-600">Primary focus: {activeMesocycle.focus}</p>
           </article>
           <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <Waves className="text-blue-600" size={24} />
             <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Fatigue Wave</h2>
-            <p className="mt-3 text-sm text-slate-600">
-              Most mesocycles rise, peak, then unload. The block should have a deliberate fatigue shape instead of random hard weeks.
-            </p>
+            <p className="mt-3 text-sm text-slate-600">{plan.activeMesocycleRecoveryWeeks} recovery week(s) in this mesocycle</p>
           </article>
           <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <Layers3 className="text-emerald-600" size={24} />
-            <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Exercise Selection</h2>
-            <p className="mt-3 text-sm text-slate-600">
-              Exercise choices support the block objective. Keep them stable long enough to measure actual progress.
-            </p>
+            <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Workout Volume</h2>
+            <p className="mt-3 text-sm text-slate-600">{plan.activeMesocycleWorkoutCount} planned workouts linked</p>
           </article>
         </section>
 
         <section className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Sample Blocks</p>
-          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">Mesocycle Examples</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Linked Blocks</p>
+          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">Mesocycle Order</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {blocks.map((block) => (
-              <article key={block.name} className="rounded-[2rem] border border-slate-100 bg-slate-50 p-6">
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">{block.span}</div>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">{block.name}</h3>
-                <p className="mt-3 text-sm text-slate-600">{block.emphasis}</p>
+            {plan.mesocycles.map((mesocycle, index) => (
+              <article
+                key={mesocycle.id}
+                className={`rounded-[2rem] border p-6 ${
+                  mesocycle.id === plan.activeMesocycleId
+                    ? 'border-orange-200 bg-orange-50'
+                    : 'border-slate-100 bg-slate-50'
+                }`}
+              >
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Block {index + 1}</div>
+                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">{mesocycle.title}</h3>
+                <p className="mt-3 text-sm text-slate-600">Focus: {mesocycle.focus}</p>
+                <p className="mt-1 text-sm text-slate-600">Microcycles: {mesocycle.microcycleIds.length}</p>
               </article>
             ))}
           </div>
