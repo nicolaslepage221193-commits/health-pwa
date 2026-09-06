@@ -232,8 +232,8 @@ export default function MesocyclePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
-        <div className="mx-auto max-w-5xl rounded-[2.5rem] border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm md:p-12">
+      <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
+        <div className="mx-auto max-w-3xl animate-pulse rounded-3xl border border-slate-700/50 bg-slate-900/40 p-6">
           Loading mesocycle data...
         </div>
       </div>
@@ -242,8 +242,8 @@ export default function MesocyclePage() {
 
   if (errorMsg || !plan || !activeMesocycle) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
-        <div className="mx-auto max-w-5xl rounded-[2.5rem] border border-red-200 bg-red-50 p-8 text-sm text-red-700 shadow-sm md:p-12">
+      <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-red-800/50 bg-red-950/40 p-6">
           {errorMsg || 'Unable to load mesocycle data.'}
         </div>
       </div>
@@ -251,65 +251,77 @@ export default function MesocyclePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed_0,_#ffffff_48%,_#f8fafc_100%)] px-6 py-10 md:px-10 md:py-14">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-12 pt-8 sm:px-6">
         <Link
           href="/plan"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-slate-500 transition hover:text-orange-500"
+          className="inline-flex w-fit items-center gap-2 rounded-full border border-white/60 bg-transparent px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-white transition hover:border-emerald-300 hover:text-emerald-200"
         >
           <ArrowLeft size={16} />
           Back To Plan
         </Link>
 
-        <header className="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm md:p-12">
-          <div className="flex items-center gap-3 text-orange-500">
+        <header className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+          <div className="flex items-center gap-3 text-teal-300">
             <Layers3 size={20} />
             <span className="text-[11px] font-black uppercase tracking-[0.35em]">Mesocycle</span>
           </div>
-          <h1 className="mt-5 text-4xl font-black uppercase tracking-tight text-slate-900 md:text-6xl md:leading-[0.9]">
+          <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
             {activeMesocycle.title}
           </h1>
-          <p className="mt-5 max-w-3xl text-sm font-medium text-slate-600 md:text-base">
+          <p className="mt-3 text-sm font-medium text-slate-200/90 sm:text-base">
             {plan.macrocycleTitle} | Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
           </p>
         </header>
 
-        <section className="grid gap-6 md:grid-cols-3">
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <Gauge className="text-orange-500" size={24} />
-            <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Load Strategy</h2>
-            <p className="mt-3 text-sm text-slate-600">Primary focus: {activeMesocycle.focus}</p>
-          </article>
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <Waves className="text-blue-600" size={24} />
-            <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Fatigue Wave</h2>
-            <p className="mt-3 text-sm text-slate-600">{plan.activeMesocycleRecoveryWeeks} recovery week(s) in this mesocycle</p>
-          </article>
-          <article className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <Layers3 className="text-emerald-600" size={24} />
-            <h2 className="mt-4 text-2xl font-black uppercase tracking-tight text-slate-900">Workout Volume</h2>
-            <p className="mt-3 text-sm text-slate-600">{plan.activeMesocycleWorkoutCount} planned workouts linked</p>
-          </article>
+        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+              <Gauge className="text-[#3E8A68]" size={22} />
+              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Load Strategy</h2>
+              <p className="mt-2 text-sm text-slate-700">Primary focus: {activeMesocycle.focus}</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+              <Waves className="text-[#3E8A68]" size={22} />
+              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Fatigue Wave</h2>
+              <p className="mt-2 text-sm text-slate-700">{plan.activeMesocycleRecoveryWeeks} recovery week(s) in this mesocycle</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+              <Layers3 className="text-[#3E8A68]" size={22} />
+              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Workout Volume</h2>
+              <p className="mt-2 text-sm text-slate-700">{plan.activeMesocycleWorkoutCount} planned workouts linked</p>
+            </article>
+          </div>
         </section>
 
-        <section className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Linked Blocks</p>
+        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Linked Blocks</p>
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">Mesocycle Order</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
             {plan.mesocycles.map((mesocycle, index) => (
               <article
                 key={mesocycle.id}
-                className={`rounded-[2rem] border p-6 ${
+                className={`rounded-[1.75rem] border p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] ${
                   mesocycle.id === plan.activeMesocycleId
-                    ? 'border-orange-200 bg-orange-50'
-                    : 'border-slate-100 bg-slate-50'
+                    ? 'border-[#3E8A68]/70 bg-[#549c76]/85'
+                    : 'border-slate-400/40 bg-white/70'
                 }`}
               >
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Block {index + 1}</div>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">{mesocycle.title}</h3>
-                <p className="mt-3 text-sm text-slate-600">Focus: {mesocycle.focus}</p>
-                <p className="mt-1 text-sm text-slate-600">Dates: {formatDateRange(mesocycle.startDate, mesocycle.endDate)}</p>
-                <p className="mt-1 text-sm text-slate-600">Microcycles: {mesocycle.microcycleCount}</p>
+                <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100' : 'text-slate-700'}`}>
+                  Block {index + 1}
+                </div>
+                <h3 className={`mt-2 text-2xl font-black uppercase tracking-tight ${mesocycle.id === plan.activeMesocycleId ? 'text-white' : 'text-slate-900'}`}>
+                  {mesocycle.title}
+                </h3>
+                <p className={`mt-3 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
+                  Focus: {mesocycle.focus}
+                </p>
+                <p className={`mt-1 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
+                  Dates: {formatDateRange(mesocycle.startDate, mesocycle.endDate)}
+                </p>
+                <p className={`mt-1 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
+                  Microcycles: {mesocycle.microcycleCount}
+                </p>
               </article>
             ))}
           </div>
