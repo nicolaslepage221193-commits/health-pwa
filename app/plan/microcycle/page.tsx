@@ -120,7 +120,7 @@ export default function MicrocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, mesocycle_id, week_number, start_date, end_date, target_volume_hours, target_distance_km, actual_volume_hours, actual_distance_km, is_recovery_week')
+        .select('*')
         .order('week_number', { ascending: true });
 
       if (microcycleError) {
