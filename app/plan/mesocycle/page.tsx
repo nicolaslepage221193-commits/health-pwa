@@ -321,7 +321,7 @@ export default function MesocyclePage() {
           </div>
         </header>
 
-        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
+        <section className="mt-6 w-full p-5 -mx-4 sm:-mx-6">
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Block Timeline</p>
           <div
             ref={timelineRef}
