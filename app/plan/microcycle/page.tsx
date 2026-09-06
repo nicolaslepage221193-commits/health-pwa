@@ -164,19 +164,19 @@ function getSportStyles(sport: SportType) {
   switch (sport) {
     case 'RUN':
       return {
-        cardClass: 'bg-[#2B4C6F]/85 border-[#40688f]/70',
+        cardClass: 'bg-[#549c76]/85 border-[#549c76]/70',
         icon: <Activity size={18} className="text-slate-100" />,
         label: 'RUN',
       };
     case 'SWIM':
       return {
-        cardClass: 'bg-[#1F5A73]/85 border-[#317590]/70',
+        cardClass: 'bg-[#549c76]/85 border-[#549c76]/70',
         icon: <Waves size={18} className="text-slate-100" />,
         label: 'SWIM',
       };
     default:
       return {
-        cardClass: 'bg-[#2E6B4B]/85 border-[#478b66]/70',
+        cardClass: 'bg-[#549c76]/85 border-[#549c76]/70',
         icon: <Bike size={18} className="text-slate-100" />,
         label: 'CYCLE',
       };
@@ -490,22 +490,22 @@ export default function MicrocyclePage() {
               return (
                 <article
                   key={day.key}
-                  className="grid grid-cols-[4.25rem_1fr] gap-3"
+                  className="grid min-h-[120px] grid-cols-[4.25rem_1fr] gap-3 items-stretch"
                 >
-                  <div className="flex flex-col items-center justify-center rounded-[1.5rem] border border-slate-700/50 bg-slate-900/30 px-2 py-4 text-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  <div className="flex h-full flex-col items-center justify-center rounded-[1.5rem] border border-transparent bg-transparent px-2 py-4 text-center">
+                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-black">
                       {new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day.date)}
                     </span>
-                    <span className="mt-1 text-2xl font-black tracking-tight text-white">{day.date.getDate()}</span>
+                    <span className="mt-1 text-2xl font-black tracking-tight text-black">{day.date.getDate()}</span>
                   </div>
 
                   <div
-                    className={`rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${
+                    className={`flex h-full min-h-[120px] rounded-[1.75rem] border p-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)] ${
                       isWorkoutPlanned ? workoutStyles?.cardClass || sportStyles.cardClass : 'border-transparent bg-transparent shadow-none'
                     }`}
                   >
                     {isWorkoutPlanned && (
-                      <div className="flex min-h-[92px] flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                      <div className="flex w-full flex-col justify-between gap-4 sm:flex-row sm:items-start">
                         <div>
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
