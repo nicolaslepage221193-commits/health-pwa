@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ChevronLeft, Gauge, Layers3, Waves } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabase';
 
 type MesocycleFocus = 'BASE' | 'BUILD' | 'PEAK' | 'TAPER' | 'RECOVERY' | 'TRANSITION';
@@ -100,6 +100,12 @@ export default function MesocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [plan, setPlan] = useState<MesocyclePlan | null>(null);
+  const [selectedMesocycleId, setSelectedMesocycleId] = useState<string | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingTimelineRef = useRef(false);
+  const suppressTimelineClickRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
 
   useEffect(() => {
     async function fetchMesocyclePlan() {
@@ -226,6 +232,7 @@ export default function MesocyclePage() {
         activeMesocycleRecoveryWeeks,
         microcyclesById,
       });
+      setSelectedMesocycleId(activeMesocycleId);
       setLoading(false);
     }
 
@@ -237,6 +244,17 @@ export default function MesocyclePage() {
     return plan.mesocycles.find((mesocycle) => mesocycle.id === plan.activeMesocycleId) || plan.mesocycles[0] || null;
   }, [plan]);
 
+  const currentMesocycle = useMemo(() => {
+    if (!plan) return null;
+
+    if (selectedMesocycleId) {
+      const selected = plan.mesocycles.find((mesocycle) => mesocycle.id === selectedMesocycleId);
+      if (selected) return selected;
+    }
+
+    return activeMesocycle;
+  }, [activeMesocycle, plan, selectedMesocycleId]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
@@ -247,7 +265,7 @@ export default function MesocyclePage() {
     );
   }
 
-  if (errorMsg || !plan || !activeMesocycle) {
+  if (errorMsg || !plan || !activeMesocycle || !currentMesocycle) {
     return (
       <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
         <div className="mx-auto max-w-3xl rounded-3xl border border-red-800/50 bg-red-950/40 p-6">
@@ -256,6 +274,29 @@ export default function MesocyclePage() {
       </div>
     );
   }
+
+  const handleTimelineMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current) return;
+    isDraggingTimelineRef.current = true;
+    suppressTimelineClickRef.current = false;
+    dragStartXRef.current = event.clientX;
+    dragStartScrollLeftRef.current = timelineRef.current.scrollLeft;
+  };
+
+  const handleTimelineMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || !isDraggingTimelineRef.current) return;
+    const deltaX = event.clientX - dragStartXRef.current;
+
+    if (Math.abs(deltaX) > 4) {
+      suppressTimelineClickRef.current = true;
+    }
+
+    timelineRef.current.scrollLeft = dragStartScrollLeftRef.current - deltaX;
+  };
+
+  const handleTimelineMouseUpOrLeave = () => {
+    isDraggingTimelineRef.current = false;
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
@@ -282,19 +323,63 @@ export default function MesocyclePage() {
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Block Timeline</p>
-          <div className="mt-4 flex items-center gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            ref={timelineRef}
+            onMouseDown={handleTimelineMouseDown}
+            onMouseMove={handleTimelineMouseMove}
+            onMouseUp={handleTimelineMouseUpOrLeave}
+            onMouseLeave={handleTimelineMouseUpOrLeave}
+            className="mt-3 flex cursor-grab select-none items-center overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
             {plan.mesocycles.map((mesocycle, index) => {
-              const isCurrent = mesocycle.id === plan.activeMesocycleId;
+              const isSelected = mesocycle.id === currentMesocycle.id;
+              const showLabelAbove = index % 2 === 0;
 
               return (
-                <div key={mesocycle.id} className="shrink-0">
-                  <div
-                    className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${
-                      isCurrent ? 'bg-[#549c76] text-white' : 'bg-white/80 text-slate-700'
-                    }`}
+                <div key={mesocycle.id} className="flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (suppressTimelineClickRef.current) {
+                        suppressTimelineClickRef.current = false;
+                        return;
+                      }
+                      setSelectedMesocycleId(mesocycle.id);
+                    }}
+                    className="relative flex h-24 w-[120px] items-center justify-center"
                   >
-                    {`Block ${index + 1}: ${mesocycle.title}`}
-                  </div>
+                    {showLabelAbove && (
+                      <span
+                        className={`absolute top-0 max-w-[110px] truncate text-center text-[10px] font-black uppercase tracking-[0.14em] ${
+                          isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
+                        }`}
+                      >
+                        {`Block ${index + 1} - ${mesocycle.title}`}
+                      </span>
+                    )}
+
+                    <span
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
+                        isSelected
+                          ? 'border-[#3E8A68] bg-[#549c76] text-white'
+                          : 'border-slate-500 bg-white text-slate-700'
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+
+                    {!showLabelAbove && (
+                      <span
+                        className={`absolute bottom-0 max-w-[110px] truncate text-center text-[10px] font-black uppercase tracking-[0.14em] ${
+                          isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
+                        }`}
+                      >
+                        {`Block ${index + 1} - ${mesocycle.title}`}
+                      </span>
+                    )}
+                  </button>
+
+                  {index < plan.mesocycles.length - 1 && <div className="h-[2px] w-10 shrink-0 bg-slate-500/60" />}
                 </div>
               );
             })}
@@ -304,14 +389,14 @@ export default function MesocyclePage() {
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Microcycles</p>
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">
-            {activeMesocycle.title}
+            {currentMesocycle.title}
           </h2>
           <p className="mt-2 text-sm text-slate-700">
             Tap a microcycle to open its dedicated microplan view.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {activeMesocycle.microcycleIds.map((microcycleId, index) => {
+            {currentMesocycle.microcycleIds.map((microcycleId, index) => {
               const microcycle = plan.microcyclesById[microcycleId];
               if (!microcycle) return null;
 
