@@ -331,7 +331,7 @@ export default function MesocyclePage() {
             className="mt-3 flex cursor-grab select-none items-center overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
             <div className="relative flex w-max items-center px-2">
-              <div className="pointer-events-none absolute left-2 right-2 top-1/2 h-1 -translate-y-1/2 bg-slate-500/70" />
+              <div className="pointer-events-none absolute left-2 right-2 top-1/2 h-2 -translate-y-1/2 bg-slate-300/80" />
               {plan.mesocycles.map((mesocycle, index) => {
                 const isSelected = mesocycle.id === currentMesocycle.id;
                 const showLabelAbove = index % 2 === 0;
@@ -351,9 +351,7 @@ export default function MesocyclePage() {
                     >
                       {showLabelAbove && (
                         <span
-                          className={`absolute top-0 flex max-w-[110px] flex-col items-center text-center ${
-                            isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
-                          }`}
+                          className="absolute top-0 flex max-w-[110px] flex-col items-center text-center text-white"
                         >
                           <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
                           <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
@@ -374,9 +372,7 @@ export default function MesocyclePage() {
 
                       {!showLabelAbove && (
                         <span
-                          className={`absolute bottom-0 flex max-w-[110px] flex-col items-center text-center ${
-                            isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
-                          }`}
+                          className="absolute bottom-0 flex max-w-[110px] flex-col items-center text-center text-white"
                         >
                           <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
                           <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
@@ -405,28 +401,23 @@ export default function MesocyclePage() {
               const workoutCount = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
 
               return (
-                <Link
-                  key={microcycle.id}
-                  href={`/plan/microcycle?microcycleId=${microcycle.id}`}
-                  className="group flex items-center gap-4 rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
-                >
+                <div key={microcycle.id} className="flex items-center gap-4">
                   <div className="min-w-[120px] text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     {formatDateRange(microcycle.start_date, microcycle.end_date)}
                   </div>
 
-                  <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/plan/microcycle?microcycleId=${microcycle.id}`}
+                    className="group min-w-0 flex-1 rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
+                  >
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
                       Week {microcycle.week_number} · Microcycle {index + 1}
                     </div>
                     <p className="mt-1 text-sm text-slate-700">
                       {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
                     </p>
-                  </div>
-
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#3E8A68]">
-                    Open microplan
-                  </p>
-                </Link>
+                  </Link>
+                </div>
               );
             })}
           </div>
