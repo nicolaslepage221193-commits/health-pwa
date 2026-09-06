@@ -322,7 +322,6 @@ export default function MesocyclePage() {
         </header>
 
         <section className="mt-6 w-full p-5 -mx-4 sm:-mx-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Block Timeline</p>
           <div
             ref={timelineRef}
             onMouseDown={handleTimelineMouseDown}
@@ -331,64 +330,65 @@ export default function MesocyclePage() {
             onMouseLeave={handleTimelineMouseUpOrLeave}
             className="mt-3 flex cursor-grab select-none items-center overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
-            {plan.mesocycles.map((mesocycle, index) => {
-              const isSelected = mesocycle.id === currentMesocycle.id;
-              const showLabelAbove = index % 2 === 0;
+            <div className="relative flex w-max items-center px-2">
+              <div className="pointer-events-none absolute left-2 right-2 top-1/2 h-1 -translate-y-1/2 bg-slate-500/70" />
+              {plan.mesocycles.map((mesocycle, index) => {
+                const isSelected = mesocycle.id === currentMesocycle.id;
+                const showLabelAbove = index % 2 === 0;
 
-              return (
-                <div key={mesocycle.id} className="flex shrink-0 items-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (suppressTimelineClickRef.current) {
-                        suppressTimelineClickRef.current = false;
-                        return;
-                      }
-                      setSelectedMesocycleId(mesocycle.id);
-                    }}
-                    className="relative flex h-24 w-[120px] items-center justify-center"
-                  >
-                    {showLabelAbove && (
-                      <span
-                        className={`absolute top-0 flex max-w-[110px] flex-col items-center text-center ${
-                          isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
-                        }`}
-                      >
-                        <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
-                        <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
-                          {mesocycle.title}
-                        </span>
-                      </span>
-                    )}
-
-                    <span
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
-                        isSelected
-                          ? 'border-[#3E8A68] bg-[#549c76] text-white'
-                          : 'border-slate-500 bg-white text-slate-700'
-                      }`}
+                return (
+                  <div key={mesocycle.id} className="relative z-10 flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (suppressTimelineClickRef.current) {
+                          suppressTimelineClickRef.current = false;
+                          return;
+                        }
+                        setSelectedMesocycleId(mesocycle.id);
+                      }}
+                      className="relative flex h-24 w-[120px] items-center justify-center"
                     >
-                      {index + 1}
-                    </span>
+                      {showLabelAbove && (
+                        <span
+                          className={`absolute top-0 flex max-w-[110px] flex-col items-center text-center ${
+                            isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
+                          }`}
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
+                          <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
+                            {mesocycle.title}
+                          </span>
+                        </span>
+                      )}
 
-                    {!showLabelAbove && (
                       <span
-                        className={`absolute bottom-0 flex max-w-[110px] flex-col items-center text-center ${
-                          isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
+                        className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
+                          isSelected
+                            ? 'border-[#3E8A68] bg-[#549c76] text-white'
+                            : 'border-slate-500 bg-white text-slate-700'
                         }`}
                       >
-                        <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
-                        <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
-                          {mesocycle.title}
-                        </span>
+                        {index + 1}
                       </span>
-                    )}
-                  </button>
 
-                  {index < plan.mesocycles.length - 1 && <div className="h-[2px] w-10 shrink-0 bg-slate-500/60" />}
-                </div>
-              );
-            })}
+                      {!showLabelAbove && (
+                        <span
+                          className={`absolute bottom-0 flex max-w-[110px] flex-col items-center text-center ${
+                            isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
+                          }`}
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
+                          <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
+                            {mesocycle.title}
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
