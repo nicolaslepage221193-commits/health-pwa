@@ -362,12 +362,6 @@ export default function MicrocyclePage() {
           </div>
 
           <div className="space-y-4">
-            {microcycles.length === 0 && (
-              <div className="rounded-[1.75rem] border border-slate-700/60 bg-slate-900/30 p-6 text-sm text-slate-300">
-                No microcycles found for this mesocycle.
-              </div>
-            )}
-
             {microcycles.map((week) => {
               const recoveryClass = week.isRecoveryWeek ? 'bg-slate-700/60 border-slate-600/70' : sportStyles.cardClass;
 
