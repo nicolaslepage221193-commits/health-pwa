@@ -350,11 +350,14 @@ export default function MesocyclePage() {
                   >
                     {showLabelAbove && (
                       <span
-                        className={`absolute top-0 max-w-[110px] truncate text-center text-[10px] font-black uppercase tracking-[0.14em] ${
+                        className={`absolute top-0 flex max-w-[110px] flex-col items-center text-center ${
                           isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
                         }`}
                       >
-                        {`Block ${index + 1} - ${mesocycle.title}`}
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
+                        <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
+                          {mesocycle.title}
+                        </span>
                       </span>
                     )}
 
@@ -370,11 +373,14 @@ export default function MesocyclePage() {
 
                     {!showLabelAbove && (
                       <span
-                        className={`absolute bottom-0 max-w-[110px] truncate text-center text-[10px] font-black uppercase tracking-[0.14em] ${
+                        className={`absolute bottom-0 flex max-w-[110px] flex-col items-center text-center ${
                           isSelected ? 'text-[#2f6a4f]' : 'text-slate-600'
                         }`}
                       >
-                        {`Block ${index + 1} - ${mesocycle.title}`}
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
+                        <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
+                          {mesocycle.title}
+                        </span>
                       </span>
                     )}
                   </button>
