@@ -528,8 +528,8 @@ export default function MicrocyclePage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex w-full flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                        <span className="text-base font-black uppercase tracking-[0.28em] text-black">
+                      <div className={`flex w-full items-center justify-center rounded-[1.75rem] border p-4 ${sportStyles.cardClass}`}>
+                        <span className="text-base font-black uppercase tracking-[0.28em] text-slate-100">
                           Rest
                         </span>
                       </div>
