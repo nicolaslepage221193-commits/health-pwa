@@ -406,15 +406,15 @@ export default function MesocyclePage() {
               const workoutCount = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
 
               return (
-                <div key={microcycle.id} className="flex items-center gap-4">
-                  <div className="min-w-[120px] text-xs font-black uppercase tracking-[0.16em] text-slate-600">
-                    <p>{formatShortDate(microcycle.start_date)}</p>
-                    <p className="mt-1">{formatShortDate(microcycle.end_date)}</p>
+                <div key={microcycle.id} className="grid grid-cols-[120px_minmax(0,1fr)] items-stretch gap-4">
+                  <div className="flex h-[92px] flex-col justify-center text-xs font-black uppercase tracking-[0.16em] text-slate-600">
+                    <p className="leading-none">{formatShortDate(microcycle.start_date)}</p>
+                    <p className="mt-2 leading-none">{formatShortDate(microcycle.end_date)}</p>
                   </div>
 
                   <Link
                     href={`/plan/microcycle?microcycleId=${microcycle.id}`}
-                    className="group min-w-0 flex-1 rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
+                    className="group flex h-[92px] min-w-0 flex-col justify-center rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
                   >
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
                       Week {microcycle.week_number} · Microcycle {index + 1}
