@@ -432,7 +432,7 @@ export default function MicrocyclePage() {
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
           <div className="mb-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">
-              {`Mesocycle ${currentMesocycleNumber}: ${currentMesocycleName}`}
+              {`Mesocycle ${currentMesocycleNumber} - ${currentMesocycleName}`}
             </p>
           </div>
 
