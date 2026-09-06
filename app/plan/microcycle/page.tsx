@@ -452,18 +452,14 @@ export default function MicrocyclePage() {
               <p className="text-[11px] font-black uppercase tracking-[0.32em] text-slate-400">
                 {macrocyclePlan.title}
               </p>
-              <p className="mt-2 text-sm font-medium text-teal-300">Microcycle</p>
+              <p className="mt-2 text-sm font-medium uppercase tracking-[0.12em] text-teal-300">
+                {`Mesocycle ${currentMesocycleNumber} | ${currentMesocycleName}`}
+              </p>
             </div>
           </div>
         </header>
 
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
-          <div className="mb-4 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">
-              {`Mesocycle ${currentMesocycleNumber} | ${currentMesocycleName}`}
-            </p>
-          </div>
-
           <div
             ref={timelineRef}
             onMouseDown={handleTimelineMouseDown}
