@@ -19,25 +19,29 @@ type MesocycleRow = {
   id: string;
   title: string;
   focus: MesocycleFocus;
+  start_date: string;
+  end_date: string;
+  microcycle_count: number | null;
   microcycle_ids: string[] | null;
 };
 
 type MicrocycleRow = {
   id: string;
   week_number: number;
+  start_date: string;
+  end_date: string;
+  length_days: number | null;
+  planned_workout_ids: string[] | null;
   is_recovery_week: boolean | null;
-};
-
-type PlannedWorkoutRow = {
-  id: string;
-  microcycle_id: string;
-  scheduled_date: string;
 };
 
 interface MesocycleSummary {
   id: string;
   title: string;
   focus: MesocycleFocus;
+  startDate: string;
+  endDate: string;
+  microcycleCount: number;
   microcycleIds: string[];
 }
 
@@ -104,7 +108,7 @@ export default function MesocyclePage() {
 
       const { data: mesocycleRows, error: mesocycleError } = await supabase
         .from('mesocycles')
-        .select('id, title, focus, microcycle_ids')
+        .select('id, title, focus, start_date, end_date, microcycle_count, microcycle_ids')
         .in('id', mesocycleIds);
 
       if (mesocycleError) {
@@ -121,6 +125,9 @@ export default function MesocyclePage() {
           id: row.id,
           title: row.title,
           focus: row.focus,
+          startDate: row.start_date,
+          endDate: row.end_date,
+          microcycleCount: row.microcycle_count ?? (row.microcycle_ids || []).length,
           microcycleIds: row.microcycle_ids || [],
         }));
 
@@ -136,7 +143,7 @@ export default function MesocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, week_number, is_recovery_week')
+        .select('id, week_number, start_date, end_date, length_days, planned_workout_ids, is_recovery_week')
         .in('id', allMicrocycleIds);
 
       if (microcycleError) {
@@ -145,48 +152,13 @@ export default function MesocyclePage() {
         return;
       }
 
-      const { data: plannedWorkoutRows, error: plannedWorkoutError } = await supabase
-        .from('planned_workouts')
-        .select('id, microcycle_id, scheduled_date')
-        .in('microcycle_id', allMicrocycleIds)
-        .order('scheduled_date', { ascending: true });
-
-      if (plannedWorkoutError) {
-        setErrorMsg(`Failed to load planned workouts: ${plannedWorkoutError.message}`);
-        setLoading(false);
-        return;
-      }
-
-      const workoutsByMicrocycle = new Map<string, PlannedWorkoutRow[]>();
-      ((plannedWorkoutRows || []) as PlannedWorkoutRow[]).forEach((row) => {
-        const current = workoutsByMicrocycle.get(row.microcycle_id) || [];
-        current.push(row);
-        workoutsByMicrocycle.set(row.microcycle_id, current);
-      });
-
-      const dateRangeByMicrocycle = new Map<string, { startDate: string | null; endDate: string | null }>();
-      allMicrocycleIds.forEach((microcycleId) => {
-        const workouts = workoutsByMicrocycle.get(microcycleId) || [];
-        if (workouts.length === 0) {
-          dateRangeByMicrocycle.set(microcycleId, { startDate: null, endDate: null });
-          return;
-        }
-
-        const sortedDates = workouts
-          .map((w) => w.scheduled_date)
-          .sort((a, b) => new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime());
-
-        dateRangeByMicrocycle.set(microcycleId, {
-          startDate: sortedDates[0],
-          endDate: sortedDates[sortedDates.length - 1],
-        });
-      });
+      const microcycleLookup = new Map<string, MicrocycleRow>(((microcycleRows || []) as MicrocycleRow[]).map((row) => [row.id, row]));
 
       const activeMicrocycleId = allMicrocycleIds.find((microcycleId) => {
-        const range = dateRangeByMicrocycle.get(microcycleId);
-        if (!range?.startDate || !range.endDate) return false;
-        const start = new Date(`${range.startDate}T00:00:00`);
-        const end = new Date(`${range.endDate}T23:59:59`);
+        const row = microcycleLookup.get(microcycleId);
+        if (!row?.start_date || !row.end_date) return false;
+        const start = new Date(`${row.start_date}T00:00:00`);
+        const end = new Date(`${row.end_date}T23:59:59`);
         return today >= start && today <= end;
       });
 
@@ -195,7 +167,6 @@ export default function MesocyclePage() {
           activeMicrocycleId ? mesocycle.microcycleIds.includes(activeMicrocycleId) : false,
         )?.id || orderedMesocycles[0].id;
 
-      const microcycleLookup = new Map<string, MicrocycleRow>(((microcycleRows || []) as MicrocycleRow[]).map((row) => [row.id, row]));
       const activeMesocycle = orderedMesocycles.find((mesocycle) => mesocycle.id === activeMesocycleId) || orderedMesocycles[0];
 
       const activeMesocycleRecoveryWeeks = activeMesocycle.microcycleIds.reduce((sum, microcycleId) => {
@@ -204,7 +175,8 @@ export default function MesocyclePage() {
       }, 0);
 
       const activeMesocycleWorkoutCount = activeMesocycle.microcycleIds.reduce((sum, microcycleId) => {
-        return sum + (workoutsByMicrocycle.get(microcycleId)?.length || 0);
+        const row = microcycleLookup.get(microcycleId);
+        return sum + (row?.planned_workout_ids?.length || 0);
       }, 0);
 
       setPlan({
@@ -265,7 +237,7 @@ export default function MesocyclePage() {
             {activeMesocycle.title}
           </h1>
           <p className="mt-5 max-w-3xl text-sm font-medium text-slate-600 md:text-base">
-            {plan.macrocycleTitle} | Focus: {activeMesocycle.focus}
+            {plan.macrocycleTitle} | Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
           </p>
         </header>
 
@@ -303,7 +275,8 @@ export default function MesocyclePage() {
                 <div className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Block {index + 1}</div>
                 <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">{mesocycle.title}</h3>
                 <p className="mt-3 text-sm text-slate-600">Focus: {mesocycle.focus}</p>
-                <p className="mt-1 text-sm text-slate-600">Microcycles: {mesocycle.microcycleIds.length}</p>
+                <p className="mt-1 text-sm text-slate-600">Dates: {formatDateRange(mesocycle.startDate, mesocycle.endDate)}</p>
+                <p className="mt-1 text-sm text-slate-600">Microcycles: {mesocycle.microcycleCount}</p>
               </article>
             ))}
           </div>
