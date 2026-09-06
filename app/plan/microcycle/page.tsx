@@ -360,11 +360,6 @@ export default function MicrocyclePage() {
     return macrocyclePlan.mesocycles.findIndex((block) => block.isCurrent);
   }, [macrocyclePlan]);
 
-  const activeMicrocycleIndex = useMemo(() => {
-    if (microcyclePlan.length === 0) return -1;
-    return microcyclePlan.findIndex((block) => block.id === currentMicrocycleId);
-  }, [microcyclePlan, currentMicrocycleId]);
-
   const currentMicrocycle = useMemo(() => {
     if (microcycles.length === 0) return null;
     return microcycles.find((m) => m.id === currentMicrocycleId) || microcycles[0];
@@ -406,6 +401,8 @@ export default function MicrocyclePage() {
   }
 
   const sportStyles = getSportStyles(macrocyclePlan.primarySport);
+  const currentMesocycleNumber =
+    Math.max(0, macrocyclePlan.mesocycles.findIndex((block) => block.isCurrent)) + 1;
   const currentMesocycleName =
     macrocyclePlan.mesocycles.find((block) => block.isCurrent)?.name ||
     macrocyclePlan.mesocycles[0]?.name ||
@@ -434,15 +431,15 @@ export default function MicrocyclePage() {
 
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
           <div className="mb-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Current Mesocycle</p>
-            <p className="mt-1 text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">{currentMesocycleName}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">
+              {`Mesocycle "${currentMesocycleNumber}": "${currentMesocycleName}"`}
+            </p>
           </div>
 
           <div className="flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {microcyclePlan.map((block, index) => {
               const isSelected = block.id === currentMicrocycleId;
               const isCurrentDate = block.isCurrentDate;
-              const isCompleted = index < activeMicrocycleIndex;
 
               return (
                 <div key={block.id} className="flex min-w-[130px] shrink-0 items-start">
@@ -456,9 +453,7 @@ export default function MicrocyclePage() {
                       className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
                         isCurrentDate
                           ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                          : isCompleted
-                            ? 'border-teal-500/80 bg-teal-500/25 text-teal-200'
-                            : 'border-slate-600 bg-slate-800/80 text-slate-400'
+                          : 'border-slate-600 bg-slate-800/80 text-slate-400'
                       } ${isSelected ? 'ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900' : ''}`}
                     >
                       {block.weekNumber}
@@ -469,9 +464,7 @@ export default function MicrocyclePage() {
                   </button>
                   {index < microcyclePlan.length - 1 && (
                     <div
-                      className={`mx-2 mt-4 h-px w-10 shrink-0 ${
-                        index <= activeMicrocycleIndex ? 'bg-emerald-500/80' : 'bg-slate-700'
-                      }`}
+                      className="mx-2 mt-4 h-px w-10 shrink-0 bg-slate-700"
                     />
                   )}
                 </div>
