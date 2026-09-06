@@ -504,7 +504,7 @@ export default function MicrocyclePage() {
                       isWorkoutPlanned ? workoutStyles?.cardClass || sportStyles.cardClass : 'border-transparent bg-transparent shadow-none'
                     }`}
                   >
-                    {isWorkoutPlanned && (
+                    {isWorkoutPlanned ? (
                       <div className="flex w-full flex-col justify-between gap-4 sm:flex-row sm:items-start">
                         <div>
                           <div className="flex items-center gap-3">
@@ -527,6 +527,12 @@ export default function MicrocyclePage() {
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <div className="flex w-full items-center justify-center">
+                        <span className="text-base font-black uppercase tracking-[0.28em] text-black">
+                          Rest
+                        </span>
+                      </div>
                     )}
                   </div>
                 </article>
@@ -534,26 +540,6 @@ export default function MicrocyclePage() {
             })}
           </div>
         </section>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 border-t border-slate-700/50 bg-slate-950/90 px-4 pb-6 pt-4 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-          <div className="flex items-center justify-center gap-2">
-            {microcycles.slice(0, 6).map((week) => (
-              <span
-                key={`${week.id}-pager`}
-                className={`h-2.5 rounded-full ${currentMicrocycleId === week.id ? 'w-8 bg-emerald-400' : 'w-2.5 bg-slate-600'}`}
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-3 rounded-[1.5rem] bg-[#3E8A68] px-6 py-4 text-sm font-black uppercase tracking-[0.25em] text-white transition hover:bg-[#4ca279]"
-          >
-            <Plus size={18} />
-            Add Microcycle
-          </button>
-        </div>
       </div>
     </div>
   );
