@@ -53,6 +53,8 @@ interface MesocycleSummary {
 
 interface MesocyclePlan {
   macrocycleTitle: string;
+  macrocycleStartDate: string;
+  macrocycleEndDate: string;
   mesocycles: MesocycleSummary[];
   activeMesocycleId: string;
   activeMesocycleWorkoutCount: number;
@@ -216,6 +218,8 @@ export default function MesocyclePage() {
 
       setPlan({
         macrocycleTitle: activeMacrocycle.title,
+        macrocycleStartDate: activeMacrocycle.start_date,
+        macrocycleEndDate: activeMacrocycle.end_date,
         mesocycles: orderedMesocycles,
         activeMesocycleId,
         activeMesocycleWorkoutCount,
@@ -256,32 +260,29 @@ export default function MesocyclePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-12 pt-8 sm:px-6">
-        <header className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+        <header className="mt-6 rounded-[2rem] bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
           <div className="flex items-start gap-4">
             <Link
               href="/plan"
               aria-label="Back to plan"
-              className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-transparent text-white transition hover:border-emerald-300 hover:text-emerald-200"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-white transition hover:text-emerald-200"
             >
               <ChevronLeft size={18} />
             </Link>
             <div className="min-w-0 flex-1">
-              <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
+              <h1 className="text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
                 {plan.macrocycleTitle}
               </h1>
-              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-100/80">
-                Mesocycle: {activeMesocycle.title}
-              </p>
               <p className="mt-3 text-sm font-medium text-slate-200/90 sm:text-base">
-                Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
+                {formatDateRange(plan.macrocycleStartDate, plan.macrocycleEndDate)}
               </p>
             </div>
           </div>
         </header>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Mesocycle Timeline</p>
-          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">All Mesocycles</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Block Timeline</p>
+          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">All Blocks</h2>
           <div className="mt-6 flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {plan.mesocycles.map((mesocycle, index) => {
               const isCurrent = mesocycle.id === plan.activeMesocycleId;
