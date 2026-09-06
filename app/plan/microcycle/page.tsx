@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Activity, Bike, ChevronLeft, Plus, Waves } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabase';
 
 type SportType = 'RUN' | 'CYCLE' | 'SWIM';
@@ -199,6 +199,11 @@ export default function MicrocyclePage() {
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
   const [currentMicrocycleId, setCurrentMicrocycleId] = useState<string | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingTimelineRef = useRef(false);
+  const suppressTimelineClickRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -408,6 +413,29 @@ export default function MicrocyclePage() {
     macrocyclePlan.mesocycles[0]?.name ||
     'Mesocycle';
 
+  const handleTimelineMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current) return;
+    isDraggingTimelineRef.current = true;
+    suppressTimelineClickRef.current = false;
+    dragStartXRef.current = event.clientX;
+    dragStartScrollLeftRef.current = timelineRef.current.scrollLeft;
+  };
+
+  const handleTimelineMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || !isDraggingTimelineRef.current) return;
+    const deltaX = event.clientX - dragStartXRef.current;
+
+    if (Math.abs(deltaX) > 4) {
+      suppressTimelineClickRef.current = true;
+    }
+
+    timelineRef.current.scrollLeft = dragStartScrollLeftRef.current - deltaX;
+  };
+
+  const handleTimelineMouseUpOrLeave = () => {
+    isDraggingTimelineRef.current = false;
+  };
+
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-40 pt-8 sm:px-6">
@@ -430,23 +458,36 @@ export default function MicrocyclePage() {
         </header>
 
         <section className="mt-6 rounded-[2rem] border border-slate-700/50 bg-slate-900/35 p-5 backdrop-blur">
-          <div className="mb-4">
+          <div className="mb-4 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-300">
-              {`Mesocycle ${currentMesocycleNumber} - ${currentMesocycleName}`}
+              {`Mesocycle ${currentMesocycleNumber} | ${currentMesocycleName}`}
             </p>
           </div>
 
-          <div className="flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            ref={timelineRef}
+            onMouseDown={handleTimelineMouseDown}
+            onMouseMove={handleTimelineMouseMove}
+            onMouseUp={handleTimelineMouseUpOrLeave}
+            onMouseLeave={handleTimelineMouseUpOrLeave}
+            className="flex cursor-grab select-none items-start overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
             {microcyclePlan.map((block, index) => {
               const isSelected = block.id === currentMicrocycleId;
               const isCurrentDate = block.isCurrentDate;
 
               return (
-                <div key={block.id} className="flex min-w-[130px] shrink-0 items-start">
+                <div key={block.id} className="flex shrink-0 items-start">
                   <button
                     type="button"
-                    onClick={() => setCurrentMicrocycleId(block.id)}
-                    className="relative z-10 flex w-full flex-col items-center text-center"
+                    onClick={() => {
+                      if (suppressTimelineClickRef.current) {
+                        suppressTimelineClickRef.current = false;
+                        return;
+                      }
+                      setCurrentMicrocycleId(block.id);
+                    }}
+                    className="relative z-10 flex w-10 flex-col items-center text-center"
                     aria-label={`Select microcycle week ${block.weekNumber}`}
                   >
                     <div
@@ -458,28 +499,18 @@ export default function MicrocyclePage() {
                     >
                       {block.weekNumber}
                     </div>
-                    <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
+                    <p className={`mt-3 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
                       Week {block.weekNumber}
                     </p>
                   </button>
                   {index < microcyclePlan.length - 1 && (
-                    <div
-                      className="mx-2 mt-4 h-px w-10 shrink-0 bg-slate-700"
-                    />
+                    <div className="mt-4 h-[2px] w-12 shrink-0 bg-slate-600" />
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2">
-            {microcyclePlan.map((block) => (
-              <span
-                key={`${block.id}-dot`}
-                className={`h-2.5 w-2.5 rounded-full ${block.id === currentMicrocycleId ? 'bg-emerald-400' : 'bg-slate-600'}`}
-              />
-            ))}
-          </div>
         </section>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
