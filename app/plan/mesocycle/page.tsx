@@ -393,7 +393,7 @@ export default function MesocyclePage() {
           </div>
         </section>
 
-        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
+        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5">
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">
             {currentMesocycle.title}
           </h2>
