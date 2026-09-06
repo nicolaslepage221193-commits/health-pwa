@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Gauge, Layers3, Waves } from 'lucide-react';
+import { ChevronLeft, Gauge, Layers3, Waves } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabase';
 
@@ -256,28 +256,27 @@ export default function MesocyclePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-12 pt-8 sm:px-6">
-        <Link
-          href="/plan"
-          className="inline-flex w-fit items-center gap-2 rounded-full border border-white/60 bg-transparent px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-white transition hover:border-emerald-300 hover:text-emerald-200"
-        >
-          <ArrowLeft size={16} />
-          Back To Plan
-        </Link>
-
         <header className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
-          <div className="flex items-center gap-3 text-teal-300">
-            <Layers3 size={20} />
-            <span className="text-[11px] font-black uppercase tracking-[0.35em]">Mesocycle View</span>
+          <div className="flex items-start gap-4">
+            <Link
+              href="/plan"
+              aria-label="Back to plan"
+              className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/60 bg-transparent text-white transition hover:border-emerald-300 hover:text-emerald-200"
+            >
+              <ChevronLeft size={18} />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
+                {plan.macrocycleTitle}
+              </h1>
+              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-100/80">
+                Mesocycle: {activeMesocycle.title}
+              </p>
+              <p className="mt-3 text-sm font-medium text-slate-200/90 sm:text-base">
+                Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
+              </p>
+            </div>
           </div>
-          <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
-            {plan.macrocycleTitle}
-          </h1>
-          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-100/80">
-            Mesocycle: {activeMesocycle.title}
-          </p>
-          <p className="mt-3 text-sm font-medium text-slate-200/90 sm:text-base">
-            Focus: {activeMesocycle.focus} | {formatDateRange(activeMesocycle.startDate, activeMesocycle.endDate)}
-          </p>
         </header>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
