@@ -98,7 +98,6 @@ export default function MesocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [plan, setPlan] = useState<MesocyclePlan | null>(null);
-  const [selectedMicrocycleId, setSelectedMicrocycleId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchMesocyclePlan() {
@@ -223,7 +222,6 @@ export default function MesocyclePage() {
         activeMesocycleRecoveryWeeks,
         microcyclesById,
       });
-      setSelectedMicrocycleId(activeMicrocycleId || activeMesocycle.microcycleIds[0] || null);
       setLoading(false);
     }
 
@@ -234,21 +232,6 @@ export default function MesocyclePage() {
     if (!plan) return null;
     return plan.mesocycles.find((mesocycle) => mesocycle.id === plan.activeMesocycleId) || plan.mesocycles[0] || null;
   }, [plan]);
-
-  const selectedMicrocycle = useMemo(() => {
-    if (!plan || !activeMesocycle) return null;
-    const microcycleId = selectedMicrocycleId && activeMesocycle.microcycleIds.includes(selectedMicrocycleId)
-      ? selectedMicrocycleId
-      : activeMesocycle.microcycleIds[0] || null;
-
-    if (!microcycleId) return null;
-    return plan.microcyclesById[microcycleId] || null;
-  }, [activeMesocycle, plan, selectedMicrocycleId]);
-
-  const selectedMicrocycleWorkouts = useMemo(() => {
-    if (!selectedMicrocycle) return [] as ScheduledWorkoutEntry[];
-    return parseScheduledWorkouts(selectedMicrocycle.scheduled_workouts).sort((a, b) => a.dayNumber - b.dayNumber);
-  }, [selectedMicrocycle]);
 
   if (loading) {
     return (
@@ -284,7 +267,7 @@ export default function MesocyclePage() {
         <header className="mt-6 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
           <div className="flex items-center gap-3 text-teal-300">
             <Layers3 size={20} />
-            <span className="text-[11px] font-black uppercase tracking-[0.35em]">Viewing Mesocycle</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.35em]">Mesocycle View</span>
           </div>
           <h1 className="mt-4 text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
             {plan.macrocycleTitle}
@@ -298,140 +281,82 @@ export default function MesocyclePage() {
         </header>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
-              <Gauge className="text-[#3E8A68]" size={22} />
-              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Load Strategy</h2>
-              <p className="mt-2 text-sm text-slate-700">Primary focus: {activeMesocycle.focus}</p>
-            </article>
-            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
-              <Waves className="text-[#3E8A68]" size={22} />
-              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Fatigue Wave</h2>
-              <p className="mt-2 text-sm text-slate-700">{plan.activeMesocycleRecoveryWeeks} recovery week(s) in this mesocycle</p>
-            </article>
-            <article className="rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
-              <Layers3 className="text-[#3E8A68]" size={22} />
-              <h2 className="mt-3 text-lg font-black uppercase tracking-tight text-slate-900">Workout Volume</h2>
-              <p className="mt-2 text-sm text-slate-700">{plan.activeMesocycleWorkoutCount} planned workouts linked</p>
-            </article>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Mesocycle Timeline</p>
+          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">All Mesocycles</h2>
+          <div className="mt-6 flex items-start overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {plan.mesocycles.map((mesocycle, index) => {
+              const isCurrent = mesocycle.id === plan.activeMesocycleId;
+
+              return (
+                <div key={mesocycle.id} className="flex shrink-0 items-start">
+                  <article
+                    className={`w-[220px] rounded-[1.75rem] border p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] ${
+                      isCurrent
+                        ? 'border-[#3E8A68]/70 bg-[#549c76]/85'
+                        : 'border-slate-400/40 bg-white/70'
+                    }`}
+                  >
+                    <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${isCurrent ? 'text-slate-100' : 'text-slate-700'}`}>
+                      Block {index + 1}
+                    </div>
+                    <h3 className={`mt-2 text-xl font-black uppercase tracking-tight ${isCurrent ? 'text-white' : 'text-slate-900'}`}>
+                      {mesocycle.title}
+                    </h3>
+                    <p className={`mt-3 text-sm ${isCurrent ? 'text-slate-100/90' : 'text-slate-700'}`}>
+                      {mesocycle.focus}
+                    </p>
+                    <p className={`mt-2 text-xs uppercase tracking-[0.22em] ${isCurrent ? 'text-slate-100/80' : 'text-slate-500'}`}>
+                      {formatDateRange(mesocycle.startDate, mesocycle.endDate)}
+                    </p>
+                    <p className={`mt-2 text-xs uppercase tracking-[0.22em] ${isCurrent ? 'text-slate-100/80' : 'text-slate-500'}`}>
+                      {mesocycle.microcycleCount} microcycle(s)
+                    </p>
+                  </article>
+
+                  {index < plan.mesocycles.length - 1 && <div className="mt-9 h-[2px] w-12 shrink-0 bg-slate-500/60" />}
+                </div>
+              );
+            })}
           </div>
         </section>
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5 -mx-4 sm:-mx-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Linked Blocks</p>
-          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">Mesocycle Order</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Microcycles</p>
+          <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">
+            {activeMesocycle.title}
+          </h2>
+          <p className="mt-2 text-sm text-slate-700">
+            Tap a microcycle to open its dedicated microplan view.
+          </p>
+
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {plan.mesocycles.map((mesocycle, index) => (
-              <article
-                key={mesocycle.id}
-                className={`rounded-[1.75rem] border p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] ${
-                  mesocycle.id === plan.activeMesocycleId
-                    ? 'border-[#3E8A68]/70 bg-[#549c76]/85'
-                    : 'border-slate-400/40 bg-white/70'
-                }`}
-              >
-                <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100' : 'text-slate-700'}`}>
-                  Block {index + 1}
-                </div>
-                <h3 className={`mt-2 text-2xl font-black uppercase tracking-tight ${mesocycle.id === plan.activeMesocycleId ? 'text-white' : 'text-slate-900'}`}>
-                  {mesocycle.title}
-                </h3>
-                <p className={`mt-3 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
-                  Focus: {mesocycle.focus}
-                </p>
-                <p className={`mt-1 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
-                  Dates: {formatDateRange(mesocycle.startDate, mesocycle.endDate)}
-                </p>
-                <p className={`mt-1 text-sm ${mesocycle.id === plan.activeMesocycleId ? 'text-slate-100/90' : 'text-slate-700'}`}>
-                  Microcycles: {mesocycle.microcycleCount}
-                </p>
-              </article>
-            ))}
-          </div>
+            {activeMesocycle.microcycleIds.map((microcycleId, index) => {
+              const microcycle = plan.microcyclesById[microcycleId];
+              if (!microcycle) return null;
 
-          <div className="mt-8 rounded-[1.75rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Microcycles in This Mesocycle</p>
-            <h2 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
-              Select a Microplan
-            </h2>
+              const workoutCount = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {activeMesocycle.microcycleIds.map((microcycleId, index) => {
-                const microcycle = plan.microcyclesById[microcycleId];
-                if (!microcycle) return null;
-
-                const isSelected = microcycleId === (selectedMicrocycle?.id || selectedMicrocycleId);
-                const workoutCount = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
-
-                return (
-                  <button
-                    key={microcycle.id}
-                    type="button"
-                    onClick={() => setSelectedMicrocycleId(microcycle.id)}
-                    className={`rounded-[1.5rem] border p-4 text-left transition ${
-                      isSelected
-                        ? 'border-[#3E8A68]/70 bg-[#549c76]/85 shadow-[0_12px_30px_rgba(0,0,0,0.12)]'
-                        : 'border-slate-300/50 bg-white/80 hover:border-[#3E8A68]/50 hover:bg-white'
-                    }`}
-                  >
-                    <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${isSelected ? 'text-slate-100' : 'text-slate-600'}`}>
-                      Week {microcycle.week_number} · Block {index + 1}
-                    </div>
-                    <h3 className={`mt-2 text-xl font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                      {formatDateRange(microcycle.start_date, microcycle.end_date)}
-                    </h3>
-                    <p className={`mt-2 text-sm ${isSelected ? 'text-slate-100/90' : 'text-slate-700'}`}>
-                      {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
-                    </p>
-                    <p className={`mt-1 text-xs uppercase tracking-[0.22em] ${isSelected ? 'text-slate-100/80' : 'text-slate-500'}`}>
-                      Click to view microplan
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedMicrocycle && (
-              <div className="mt-6 rounded-[1.75rem] bg-[#c4ced6] p-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Selected Microplan</p>
-                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
-                      Microcycle {selectedMicrocycle.week_number}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-700">
-                      {formatDateRange(selectedMicrocycle.start_date, selectedMicrocycle.end_date)}
-                    </p>
+              return (
+                <Link
+                  key={microcycle.id}
+                  href={`/plan/microcycle?microcycleId=${microcycle.id}`}
+                  className="group rounded-[1.75rem] border border-slate-400/40 bg-white/75 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5 hover:border-[#3E8A68]/50 hover:bg-white"
+                >
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
+                    Week {microcycle.week_number} · Microcycle {index + 1}
                   </div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-600">
-                    {selectedMicrocycle.is_recovery_week ? 'Recovery week' : 'Training week'}
+                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
+                    {formatDateRange(microcycle.start_date, microcycle.end_date)}
+                  </h3>
+                  <p className="mt-3 text-sm text-slate-700">
+                    {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
                   </p>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {selectedMicrocycleWorkouts.length > 0 ? (
-                    selectedMicrocycleWorkouts.map((workout) => (
-                      <article
-                        key={`${selectedMicrocycle.id}-${workout.dayNumber}`}
-                        className="rounded-[1.5rem] border border-slate-300/50 bg-white/80 p-4"
-                      >
-                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
-                          Day {workout.dayNumber}
-                        </p>
-                        <h4 className="mt-1 text-lg font-black uppercase tracking-tight text-slate-900">
-                          {plan.microcyclesById[selectedMicrocycle.id] ? 'Planned Workout' : 'Workout'}
-                        </h4>
-                        {workout.notes && <p className="mt-2 text-sm text-slate-700">{workout.notes}</p>}
-                      </article>
-                    ))
-                  ) : (
-                    <div className="rounded-[1.5rem] border border-slate-300/50 bg-white/80 p-4 text-sm text-slate-700">
-                      No scheduled workouts found for this microplan.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+                  <p className="mt-1 text-xs font-black uppercase tracking-[0.22em] text-[#3E8A68]">
+                    Open microplan
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       </div>
