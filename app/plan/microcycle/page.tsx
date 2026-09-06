@@ -361,7 +361,7 @@ export default function MicrocyclePage() {
           </div>
         </section>
 
-        <section className="mt-6">
+        <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5">
           <div className="mb-4 px-1">
             <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
               {currentMicrocycle ? `Microcycle ${currentMicrocycle.weekNumber}` : 'Microcycles'}
