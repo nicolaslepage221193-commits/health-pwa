@@ -528,7 +528,7 @@ export default function MicrocyclePage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex w-full items-center justify-center">
+                      <div className="flex w-full flex-col justify-between gap-4 sm:flex-row sm:items-start">
                         <span className="text-base font-black uppercase tracking-[0.28em] text-black">
                           Rest
                         </span>
