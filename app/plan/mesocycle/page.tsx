@@ -57,6 +57,7 @@ interface MesocyclePlan {
   activeMesocycleId: string;
   activeMesocycleWorkoutCount: number;
   activeMesocycleRecoveryWeeks: number;
+  microcyclesById: Record<string, MicrocycleRow>;
 }
 
 function formatDateRange(startDate: string, endDate: string): string {
@@ -97,6 +98,7 @@ export default function MesocyclePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [plan, setPlan] = useState<MesocyclePlan | null>(null);
+  const [selectedMicrocycleId, setSelectedMicrocycleId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchMesocyclePlan() {
@@ -186,6 +188,7 @@ export default function MesocyclePage() {
       }
 
       const microcycleLookup = new Map<string, MicrocycleRow>(((microcycleRows || []) as MicrocycleRow[]).map((row) => [row.id, row]));
+      const microcyclesById = Object.fromEntries(microcycleLookup.entries());
 
       const activeMicrocycleId = allMicrocycleIds.find((microcycleId) => {
         const row = microcycleLookup.get(microcycleId);
@@ -218,7 +221,9 @@ export default function MesocyclePage() {
         activeMesocycleId,
         activeMesocycleWorkoutCount,
         activeMesocycleRecoveryWeeks,
+        microcyclesById,
       });
+      setSelectedMicrocycleId(activeMicrocycleId || activeMesocycle.microcycleIds[0] || null);
       setLoading(false);
     }
 
@@ -229,6 +234,21 @@ export default function MesocyclePage() {
     if (!plan) return null;
     return plan.mesocycles.find((mesocycle) => mesocycle.id === plan.activeMesocycleId) || plan.mesocycles[0] || null;
   }, [plan]);
+
+  const selectedMicrocycle = useMemo(() => {
+    if (!plan || !activeMesocycle) return null;
+    const microcycleId = selectedMicrocycleId && activeMesocycle.microcycleIds.includes(selectedMicrocycleId)
+      ? selectedMicrocycleId
+      : activeMesocycle.microcycleIds[0] || null;
+
+    if (!microcycleId) return null;
+    return plan.microcyclesById[microcycleId] || null;
+  }, [activeMesocycle, plan, selectedMicrocycleId]);
+
+  const selectedMicrocycleWorkouts = useMemo(() => {
+    if (!selectedMicrocycle) return [] as ScheduledWorkoutEntry[];
+    return parseScheduledWorkouts(selectedMicrocycle.scheduled_workouts).sort((a, b) => a.dayNumber - b.dayNumber);
+  }, [selectedMicrocycle]);
 
   if (loading) {
     return (
@@ -327,6 +347,91 @@ export default function MesocyclePage() {
                 </p>
               </article>
             ))}
+          </div>
+
+          <div className="mt-8 rounded-[1.75rem] border border-slate-400/40 bg-white/70 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.12)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Microcycles in This Mesocycle</p>
+            <h2 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
+              Select a Microplan
+            </h2>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {activeMesocycle.microcycleIds.map((microcycleId, index) => {
+                const microcycle = plan.microcyclesById[microcycleId];
+                if (!microcycle) return null;
+
+                const isSelected = microcycleId === (selectedMicrocycle?.id || selectedMicrocycleId);
+                const workoutCount = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
+
+                return (
+                  <button
+                    key={microcycle.id}
+                    type="button"
+                    onClick={() => setSelectedMicrocycleId(microcycle.id)}
+                    className={`rounded-[1.5rem] border p-4 text-left transition ${
+                      isSelected
+                        ? 'border-[#3E8A68]/70 bg-[#549c76]/85 shadow-[0_12px_30px_rgba(0,0,0,0.12)]'
+                        : 'border-slate-300/50 bg-white/80 hover:border-[#3E8A68]/50 hover:bg-white'
+                    }`}
+                  >
+                    <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${isSelected ? 'text-slate-100' : 'text-slate-600'}`}>
+                      Week {microcycle.week_number} · Block {index + 1}
+                    </div>
+                    <h3 className={`mt-2 text-xl font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                      {formatDateRange(microcycle.start_date, microcycle.end_date)}
+                    </h3>
+                    <p className={`mt-2 text-sm ${isSelected ? 'text-slate-100/90' : 'text-slate-700'}`}>
+                      {microcycle.is_recovery_week ? 'Recovery week' : 'Training week'} · {workoutCount} workout(s)
+                    </p>
+                    <p className={`mt-1 text-xs uppercase tracking-[0.22em] ${isSelected ? 'text-slate-100/80' : 'text-slate-500'}`}>
+                      Click to view microplan
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedMicrocycle && (
+              <div className="mt-6 rounded-[1.75rem] bg-[#c4ced6] p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-600">Selected Microplan</p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-slate-900">
+                      Microcycle {selectedMicrocycle.week_number}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {formatDateRange(selectedMicrocycle.start_date, selectedMicrocycle.end_date)}
+                    </p>
+                  </div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-600">
+                    {selectedMicrocycle.is_recovery_week ? 'Recovery week' : 'Training week'}
+                  </p>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {selectedMicrocycleWorkouts.length > 0 ? (
+                    selectedMicrocycleWorkouts.map((workout) => (
+                      <article
+                        key={`${selectedMicrocycle.id}-${workout.dayNumber}`}
+                        className="rounded-[1.5rem] border border-slate-300/50 bg-white/80 p-4"
+                      >
+                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
+                          Day {workout.dayNumber}
+                        </p>
+                        <h4 className="mt-1 text-lg font-black uppercase tracking-tight text-slate-900">
+                          {plan.microcyclesById[selectedMicrocycle.id] ? 'Planned Workout' : 'Workout'}
+                        </h4>
+                        {workout.notes && <p className="mt-2 text-sm text-slate-700">{workout.notes}</p>}
+                      </article>
+                    ))
+                  ) : (
+                    <div className="rounded-[1.5rem] border border-slate-300/50 bg-white/80 p-4 text-sm text-slate-700">
+                      No scheduled workouts found for this microplan.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>
