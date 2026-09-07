@@ -94,25 +94,6 @@ function endOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 }
 
-function getFocusIntensityBase(focus: MesocycleFocus): number {
-  switch (focus) {
-    case 'BASE':
-      return 0.62;
-    case 'BUILD':
-      return 0.74;
-    case 'PEAK':
-      return 0.9;
-    case 'TAPER':
-      return 0.52;
-    case 'RECOVERY':
-      return 0.42;
-    case 'TRANSITION':
-      return 0.36;
-    default:
-      return 0.65;
-  }
-}
-
 function normalizeIntensity(value: number | null): number {
   if (typeof value !== 'number' || Number.isNaN(value) || value < 0) return 0;
   if (value <= 1) return value;
@@ -382,18 +363,12 @@ export default function MesocyclePage() {
   const microcycleGraphData = useMemo(() => {
     if (!plan || !currentMesocycle) return null;
 
-    const baseIntensity = getFocusIntensityBase(currentMesocycle.focus);
     const points = currentMesocycle.microcycleIds
       .map((microcycleId, index) => {
         const microcycle = plan.microcyclesById[microcycleId];
         if (!microcycle) return null;
 
         const volume = typeof microcycle.target_volume_hours === 'number' ? microcycle.target_volume_hours : 0;
-        const lengthDays = microcycle.length_days && microcycle.length_days > 0 ? microcycle.length_days : 7;
-        const density = Math.min(volume / lengthDays, 1);
-        const intensity = microcycle.is_recovery_week
-          ? Math.max(0.25, baseIntensity * 0.62)
-          : Math.min(1, baseIntensity + density * 0.3);
         const averageIntensity = normalizeIntensity(microcycle.average_intensity);
 
         return {
@@ -401,7 +376,6 @@ export default function MesocyclePage() {
           label: `M${index + 1}`,
           week: microcycle.week_number,
           volume,
-          intensity,
           averageIntensity,
           averageIntensityRaw: microcycle.average_intensity,
         };
@@ -414,7 +388,6 @@ export default function MesocyclePage() {
           label: string;
           week: number;
           volume: number;
-          intensity: number;
           averageIntensity: number;
           averageIntensityRaw: number | null;
         } => Boolean(entry),
@@ -577,9 +550,6 @@ export default function MesocyclePage() {
                   <span className="h-2.5 w-2.5 rounded-sm bg-[#5A747F]" />Volume
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#9CC2AE]" />Intensity
-                </span>
-                <span className="inline-flex items-center gap-1.5">
                   <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
                 </span>
               </div>
@@ -652,24 +622,6 @@ export default function MesocyclePage() {
 
                 <polyline
                   fill="none"
-                  stroke="#9CC2AE"
-                  strokeWidth="3"
-                  points={microcycleGraphData.points
-                    .map((point, index) => {
-                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
-                      const leftPad = 24;
-                      const rightPad = 16;
-                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                      const x = leftPad + index * xStep + xStep * 0.38;
-                      const yBase = 158;
-                      const y = yBase - point.intensity * 120;
-                      return `${x},${y}`;
-                    })
-                    .join(' ')}
-                />
-
-                <polyline
-                  fill="none"
                   stroke="#E9A857"
                   strokeWidth="3"
                   strokeDasharray="6 5"
@@ -686,18 +638,6 @@ export default function MesocyclePage() {
                     })
                     .join(' ')}
                 />
-
-                {microcycleGraphData.points.map((point, index) => {
-                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
-                  const leftPad = 24;
-                  const rightPad = 16;
-                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                  const x = leftPad + index * xStep + xStep * 0.38;
-                  const yBase = 158;
-                  const y = yBase - point.intensity * 120;
-
-                  return <circle key={`${point.id}-intensity`} cx={x} cy={y} r={4} fill="#9CC2AE" />;
-                })}
 
                 {microcycleGraphData.points.map((point, index) => {
                   const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
