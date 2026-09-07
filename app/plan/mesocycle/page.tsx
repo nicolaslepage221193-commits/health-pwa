@@ -460,12 +460,12 @@ export default function MesocyclePage() {
                           }}
                           className={`absolute top-0 h-36 rounded-lg border p-3 text-left shadow transition ${
                             isSelected
-                              ? 'z-20 border-[#7AA58F] bg-[#1A232A] text-[#ECF6EF] ring-2 ring-[#7AA58F]/80'
+                              ? 'z-20 border-[#9CC2AE] bg-[#5A747F] text-[#F4FBF7] ring-2 ring-[#A9D0BC]/80'
                               : block.isCompleted
-                                ? 'z-10 border-[#53636E] bg-[#10171D] text-slate-200'
+                                ? 'z-10 border-[#7E95A3] bg-[#4A6070] text-[#F1F6FA]'
                                 : block.isCurrent
-                                  ? 'z-10 border-[#6C8CA0] bg-[#24313A] text-[#EAF1F5]'
-                                  : 'z-10 border-[#31414B] bg-[linear-gradient(135deg,#1A232A,#10171D)] text-slate-100'
+                                  ? 'z-10 border-[#8DB0C6] bg-[#5E7F92] text-[#F4FAFD]'
+                                  : 'z-10 border-[#7A95A6] bg-[linear-gradient(135deg,#6B848F,#566D78)] text-[#F2F8FB]'
                           }`}
                           style={{ left: `${block.left}px`, width: `${block.width}px` }}
                         >
