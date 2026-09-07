@@ -101,6 +101,61 @@ function normalizeIntensity(value: number | null): number {
   return Math.min(value / 100, 1);
 }
 
+function buildMonotoneSplinePath(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  const n = points.length;
+  const d: number[] = [];
+  const m: number[] = new Array(n).fill(0);
+
+  for (let i = 0; i < n - 1; i += 1) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    d.push(dx === 0 ? 0 : dy / dx);
+  }
+
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+
+  for (let i = 1; i < n - 1; i += 1) {
+    m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  }
+
+  for (let i = 0; i < n - 1; i += 1) {
+    if (d[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+
+    const a = m[i] / d[i];
+    const b = m[i + 1] / d[i];
+    const sum = a * a + b * b;
+
+    if (sum > 9) {
+      const t = 3 / Math.sqrt(sum);
+      m[i] = t * a * d[i];
+      m[i + 1] = t * b * d[i];
+    }
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 0; i < n - 1; i += 1) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const h = p1.x - p0.x;
+    const c1x = p0.x + h / 3;
+    const c1y = p0.y + (m[i] * h) / 3;
+    const c2x = p1.x - h / 3;
+    const c2y = p1.y - (m[i + 1] * h) / 3;
+    path += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p1.x} ${p1.y}`;
+  }
+
+  return path;
+}
+
 function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
   if (!Array.isArray(raw)) return [];
 
@@ -396,10 +451,43 @@ export default function MesocyclePage() {
     if (points.length === 0) return null;
 
     const maxVolume = Math.max(...points.map((point) => point.volume), 1);
+    const chartWidth = Math.max(360, points.length * 90);
+    const leftPad = 24;
+    const rightPad = 16;
+    const xStep = (chartWidth - leftPad - rightPad) / points.length;
+    const yBase = 158;
+    const chartHeight = 120;
+
+    const volumePolylinePoints = points
+      .map((point, index) => {
+        const x = leftPad + index * xStep + xStep * 0.38;
+        const y = yBase - (point.volume / maxVolume) * chartHeight;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    const averageIntensityPolylinePoints = points
+      .map((point, index) => {
+        const x = leftPad + index * xStep + xStep * 0.38;
+        const y = yBase - point.averageIntensity * chartHeight;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    const volumeSplinePath = buildMonotoneSplinePath(
+      points.map((point, index) => ({
+        x: leftPad + index * xStep + xStep * 0.38,
+        y: yBase - (point.volume / maxVolume) * chartHeight,
+      })),
+    );
 
     return {
       points,
       maxVolume,
+      chartWidth,
+      volumePolylinePoints,
+      averageIntensityPolylinePoints,
+      volumeSplinePath,
     };
   }, [plan, currentMesocycle]);
 
@@ -550,6 +638,9 @@ export default function MesocyclePage() {
                   <span className="h-0.5 w-5 bg-[#5A747F]" />Volume
                 </span>
                 <span className="inline-flex items-center gap-1.5">
+                  <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume (Spline)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
                 </span>
               </div>
@@ -557,15 +648,15 @@ export default function MesocyclePage() {
 
             <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <svg
-                width={Math.max(360, microcycleGraphData.points.length * 90)}
+                width={microcycleGraphData.chartWidth}
                 height={210}
-                viewBox={`0 0 ${Math.max(360, microcycleGraphData.points.length * 90)} 210`}
+                viewBox={`0 0 ${microcycleGraphData.chartWidth} 210`}
                 className="block"
                 role="img"
                 aria-label="Microcycle volume and average intensity chart"
               >
                 {microcycleGraphData.points.map((point, index) => {
-                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                  const chartWidth = microcycleGraphData.chartWidth;
                   const leftPad = 24;
                   const rightPad = 16;
                   const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
@@ -613,18 +704,16 @@ export default function MesocyclePage() {
                   fill="none"
                   stroke="#5A747F"
                   strokeWidth="3"
-                  points={microcycleGraphData.points
-                    .map((point, index) => {
-                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
-                      const leftPad = 24;
-                      const rightPad = 16;
-                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                      const x = leftPad + index * xStep + xStep * 0.38;
-                      const yBase = 158;
-                      const y = yBase - (point.volume / microcycleGraphData.maxVolume) * 120;
-                      return `${x},${y}`;
-                    })
-                    .join(' ')}
+                  points={microcycleGraphData.volumePolylinePoints}
+                />
+
+                <path
+                  d={microcycleGraphData.volumeSplinePath}
+                  fill="none"
+                  stroke="#2E4B59"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
 
                 <polyline
@@ -632,18 +721,7 @@ export default function MesocyclePage() {
                   stroke="#E9A857"
                   strokeWidth="3"
                   strokeDasharray="6 5"
-                  points={microcycleGraphData.points
-                    .map((point, index) => {
-                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
-                      const leftPad = 24;
-                      const rightPad = 16;
-                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                      const x = leftPad + index * xStep + xStep * 0.38;
-                      const yBase = 158;
-                      const y = yBase - point.averageIntensity * 120;
-                      return `${x},${y}`;
-                    })
-                    .join(' ')}
+                  points={microcycleGraphData.averageIntensityPolylinePoints}
                 />
               </svg>
             </div>
