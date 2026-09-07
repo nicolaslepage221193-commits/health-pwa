@@ -74,6 +74,24 @@ function formatShortDate(date: string): string {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(parsed);
 }
 
+function parseDateOnly(date: string): Date {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+}
+
+function dayDiffInclusive(start: Date, end: Date): number {
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
+}
+
+function addMonths(date: Date, months: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+}
+
+function endOfMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+}
+
 function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
   if (!Array.isArray(raw)) return [];
 
@@ -260,6 +278,72 @@ export default function MesocyclePage() {
     return activeMesocycle;
   }, [activeMesocycle, plan, selectedMesocycleId]);
 
+  const timelineData = useMemo(() => {
+    if (!plan || plan.mesocycles.length === 0) return null;
+
+    const pxPerDay = 6;
+    const sortedMesocycles = [...plan.mesocycles].sort(
+      (a, b) => parseDateOnly(a.startDate).getTime() - parseDateOnly(b.startDate).getTime(),
+    );
+
+    const timelineStart = parseDateOnly(sortedMesocycles[0].startDate);
+    const timelineEnd = parseDateOnly(sortedMesocycles[sortedMesocycles.length - 1].endDate);
+    const totalDays = dayDiffInclusive(timelineStart, timelineEnd);
+    const totalWidth = totalDays * pxPerDay;
+    const today = new Date();
+    const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+    const months: Array<{
+      key: string;
+      label: string;
+      left: number;
+      width: number;
+    }> = [];
+
+    let cursor = new Date(Date.UTC(timelineStart.getUTCFullYear(), timelineStart.getUTCMonth(), 1));
+    while (cursor.getTime() <= timelineEnd.getTime()) {
+      const monthStart = cursor.getTime() < timelineStart.getTime() ? timelineStart : cursor;
+      const rawMonthEnd = endOfMonth(cursor);
+      const monthEnd = rawMonthEnd.getTime() > timelineEnd.getTime() ? timelineEnd : rawMonthEnd;
+      const offsetDays = dayDiffInclusive(timelineStart, monthStart) - 1;
+      const monthDays = dayDiffInclusive(monthStart, monthEnd);
+
+      months.push({
+        key: `${cursor.getUTCFullYear()}-${cursor.getUTCMonth() + 1}`,
+        label: new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(cursor),
+        left: offsetDays * pxPerDay,
+        width: monthDays * pxPerDay,
+      });
+
+      cursor = addMonths(cursor, 1);
+    }
+
+    const blocks = sortedMesocycles.map((mesocycle, index) => {
+      const start = parseDateOnly(mesocycle.startDate);
+      const end = parseDateOnly(mesocycle.endDate);
+      const leftDays = dayDiffInclusive(timelineStart, start) - 1;
+      const durationDays = dayDiffInclusive(start, end);
+      const isCompleted = end.getTime() < todayUtc.getTime();
+      const isCurrent = start.getTime() <= todayUtc.getTime() && end.getTime() >= todayUtc.getTime();
+
+      return {
+        ...mesocycle,
+        number: index + 1,
+        left: leftDays * pxPerDay,
+        width: durationDays * pxPerDay,
+        durationDays,
+        isCompleted,
+        isCurrent,
+      };
+    });
+
+    return {
+      totalWidth,
+      months,
+      blocks,
+    };
+  }, [plan]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
@@ -304,7 +388,7 @@ export default function MesocyclePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
         <header className="mt-6 rounded-[2rem] bg-transparent p-5">
           <div className="flex items-center gap-4">
@@ -333,62 +417,67 @@ export default function MesocyclePage() {
             onMouseMove={handleTimelineMouseMove}
             onMouseUp={handleTimelineMouseUpOrLeave}
             onMouseLeave={handleTimelineMouseUpOrLeave}
-            className="mt-3 flex cursor-grab select-none items-center overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="mt-3 cursor-grab select-none overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="relative flex w-max items-center">
-              <div className="pointer-events-none absolute left-[60px] right-[60px] top-1/2 h-2 -translate-y-1/2 bg-slate-300/80" />
-              {plan.mesocycles.map((mesocycle, index) => {
-                const isSelected = mesocycle.id === currentMesocycle.id;
-                const showLabelAbove = index % 2 === 0;
-
-                return (
-                  <div key={mesocycle.id} className="relative z-10 flex shrink-0 items-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (suppressTimelineClickRef.current) {
-                          suppressTimelineClickRef.current = false;
-                          return;
-                        }
-                        setSelectedMesocycleId(mesocycle.id);
-                      }}
-                      className="relative flex h-28 w-[120px] items-center justify-center"
-                    >
-                      {showLabelAbove && (
-                        <span
-                          className="absolute top-1 flex max-w-[110px] flex-col items-center text-center text-white"
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
-                          <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
-                            {mesocycle.title}
-                          </span>
-                        </span>
-                      )}
-
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-black uppercase tracking-tight transition ${
-                          isSelected
-                            ? 'border-[#3E8A68] bg-[#549c76] text-white'
-                            : 'border-slate-500 bg-white text-slate-700'
-                        }`}
+            <div className="relative" style={{ width: `${timelineData?.totalWidth || 0}px`, minHeight: '220px' }}>
+              {timelineData && (
+                <>
+                  <div className="absolute left-0 right-0 top-0 h-12 border-b border-slate-200/60">
+                    {timelineData.months.map((month) => (
+                      <div
+                        key={month.key}
+                        className="absolute top-0 h-12 border-r border-slate-200/50"
+                        style={{ left: `${month.left}px`, width: `${month.width}px` }}
                       >
-                        {index + 1}
-                      </span>
-
-                      {!showLabelAbove && (
-                        <span
-                          className="absolute bottom-1 flex max-w-[110px] flex-col items-center text-center text-white"
-                        >
-                          <span className="text-[10px] font-black uppercase tracking-[0.14em]">{`Block ${index + 1}`}</span>
-                          <span className="mt-0.5 max-w-[110px] truncate text-[10px] font-semibold uppercase tracking-[0.1em]">
-                            {mesocycle.title}
-                          </span>
+                        <span className="absolute left-2 top-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-slate-100/90">
+                          {month.label}
                         </span>
-                      )}
-                    </button>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+
+                  <div className="absolute left-0 right-0 top-16 h-40">
+                    {timelineData.blocks.map((block) => {
+                      const isSelected = block.id === currentMesocycle.id;
+
+                      return (
+                        <button
+                          key={block.id}
+                          type="button"
+                          onClick={() => {
+                            if (suppressTimelineClickRef.current) {
+                              suppressTimelineClickRef.current = false;
+                              return;
+                            }
+                            setSelectedMesocycleId(block.id);
+                          }}
+                          className={`absolute top-0 h-36 rounded-2xl border p-3 text-left shadow transition ${
+                            isSelected
+                              ? 'z-20 border-emerald-200 bg-emerald-600 text-white ring-2 ring-emerald-200/80'
+                              : block.isCompleted
+                                ? 'z-10 border-sky-200/80 bg-sky-700/85 text-white'
+                                : block.isCurrent
+                                  ? 'z-10 border-lime-200/80 bg-lime-700/85 text-white'
+                                  : 'z-10 border-slate-200 bg-white/95 text-slate-800'
+                          }`}
+                          style={{ left: `${block.left}px`, width: `${block.width}px` }}
+                        >
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em]">
+                            Mesocycle {block.number}
+                          </p>
+                          <p className="mt-1 truncate text-sm font-bold uppercase tracking-tight">{block.title}</p>
+                          <p className="mt-2 text-[11px] font-semibold">
+                            {formatShortDate(block.startDate)} - {formatShortDate(block.endDate)}
+                          </p>
+                          <p className="mt-1 text-[11px] font-semibold">
+                            Duration: {block.durationDays} day{block.durationDays === 1 ? '' : 's'}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
