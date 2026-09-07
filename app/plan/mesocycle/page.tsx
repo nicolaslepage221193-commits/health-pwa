@@ -547,7 +547,7 @@ export default function MesocyclePage() {
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
               <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-[#5A747F]" />Volume
+                  <span className="h-0.5 w-5 bg-[#5A747F]" />Volume
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
@@ -562,33 +562,22 @@ export default function MesocyclePage() {
                 viewBox={`0 0 ${Math.max(360, microcycleGraphData.points.length * 90)} 210`}
                 className="block"
                 role="img"
-                aria-label="Microcycle volume and intensity chart"
+                aria-label="Microcycle volume and average intensity chart"
               >
                 {microcycleGraphData.points.map((point, index) => {
                   const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
                   const leftPad = 24;
                   const rightPad = 16;
                   const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                  const x = leftPad + index * xStep + xStep * 0.15;
-                  const barWidth = xStep * 0.45;
-                  const maxBarHeight = 120;
-                  const barHeight = (point.volume / microcycleGraphData.maxVolume) * maxBarHeight;
+                  const x = leftPad + index * xStep + xStep * 0.38;
                   const yBase = 158;
+                  const yVolume = yBase - (point.volume / microcycleGraphData.maxVolume) * 120;
 
                   return (
                     <g key={point.id}>
-                      <rect
-                        x={x}
-                        y={yBase - barHeight}
-                        width={barWidth}
-                        height={barHeight}
-                        rx={4}
-                        fill="#5A747F"
-                        opacity={0.9}
-                      />
                       <text
-                        x={x + barWidth / 2}
-                        y={yBase - barHeight - 6}
+                        x={x}
+                        y={yVolume - 8}
                         textAnchor="middle"
                         fontSize="11"
                         fontWeight="700"
@@ -597,7 +586,7 @@ export default function MesocyclePage() {
                         {point.volume}
                       </text>
                       <text
-                        x={x + barWidth / 2}
+                        x={x}
                         y={188}
                         textAnchor="middle"
                         fontSize="10"
@@ -607,7 +596,7 @@ export default function MesocyclePage() {
                         {point.label}
                       </text>
                       <text
-                        x={x + barWidth / 2}
+                        x={x}
                         y={200}
                         textAnchor="middle"
                         fontSize="9"
@@ -619,6 +608,24 @@ export default function MesocyclePage() {
                     </g>
                   );
                 })}
+
+                <polyline
+                  fill="none"
+                  stroke="#5A747F"
+                  strokeWidth="3"
+                  points={microcycleGraphData.points
+                    .map((point, index) => {
+                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                      const leftPad = 24;
+                      const rightPad = 16;
+                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                      const x = leftPad + index * xStep + xStep * 0.38;
+                      const yBase = 158;
+                      const y = yBase - (point.volume / microcycleGraphData.maxVolume) * 120;
+                      return `${x},${y}`;
+                    })
+                    .join(' ')}
+                />
 
                 <polyline
                   fill="none"
@@ -638,18 +645,6 @@ export default function MesocyclePage() {
                     })
                     .join(' ')}
                 />
-
-                {microcycleGraphData.points.map((point, index) => {
-                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
-                  const leftPad = 24;
-                  const rightPad = 16;
-                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                  const x = leftPad + index * xStep + xStep * 0.38;
-                  const yBase = 158;
-                  const y = yBase - point.averageIntensity * 120;
-
-                  return <circle key={`${point.id}-avg-intensity`} cx={x} cy={y} r={3.5} fill="#E9A857" />;
-                })}
               </svg>
             </div>
           </section>
