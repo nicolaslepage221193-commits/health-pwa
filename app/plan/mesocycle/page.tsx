@@ -188,6 +188,7 @@ export default function MesocyclePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [plan, setPlan] = useState<MesocyclePlan | null>(null);
   const [selectedMesocycleId, setSelectedMesocycleId] = useState<string | null>(null);
+  const [hoveredGraphIndex, setHoveredGraphIndex] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const isDraggingTimelineRef = useRef(false);
   const suppressTimelineClickRef = useRef(false);
@@ -458,24 +459,39 @@ export default function MesocyclePage() {
     const yBase = 158;
     const chartHeight = 120;
 
+    const plotPoints = points.map((point, index) => {
+      const x = leftPad + index * xStep + xStep * 0.38;
+      const yVolume = yBase - (point.volume / maxVolume) * chartHeight;
+      const yAverageIntensity = yBase - point.averageIntensity * chartHeight;
+
+      return {
+        ...point,
+        x,
+        yVolume,
+        yAverageIntensity,
+      };
+    });
+
     const volumeSplinePath = buildMonotoneSplinePath(
-      points.map((point, index) => ({
-        x: leftPad + index * xStep + xStep * 0.38,
-        y: yBase - (point.volume / maxVolume) * chartHeight,
+      plotPoints.map((point) => ({
+        x: point.x,
+        y: point.yVolume,
       })),
     );
 
     const averageIntensitySplinePath = buildMonotoneSplinePath(
-      points.map((point, index) => ({
-        x: leftPad + index * xStep + xStep * 0.38,
-        y: yBase - point.averageIntensity * chartHeight,
+      plotPoints.map((point) => ({
+        x: point.x,
+        y: point.yAverageIntensity,
       })),
     );
 
     return {
-      points,
+      points: plotPoints,
       maxVolume,
       chartWidth,
+      xStep,
+      yBase,
       volumeSplinePath,
       averageIntensitySplinePath,
     };
@@ -627,36 +643,19 @@ export default function MesocyclePage() {
 
             <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <svg
-                width={microcycleGraphData.chartWidth}
+                width="100%"
                 height={210}
                 viewBox={`0 0 ${microcycleGraphData.chartWidth} 210`}
-                className="block"
+                className="block w-full"
                 role="img"
                 aria-label="Microcycle volume and average intensity chart"
+                onMouseLeave={() => setHoveredGraphIndex(null)}
               >
                 {microcycleGraphData.points.map((point, index) => {
-                  const chartWidth = microcycleGraphData.chartWidth;
-                  const leftPad = 24;
-                  const rightPad = 16;
-                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
-                  const x = leftPad + index * xStep + xStep * 0.38;
-                  const yBase = 158;
-                  const yVolume = yBase - (point.volume / microcycleGraphData.maxVolume) * 120;
-
                   return (
                     <g key={point.id}>
                       <text
-                        x={x}
-                        y={yVolume - 8}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fontWeight="700"
-                        fill="#1F2A33"
-                      >
-                        {point.volume}
-                      </text>
-                      <text
-                        x={x}
+                        x={point.x}
                         y={188}
                         textAnchor="middle"
                         fontSize="10"
@@ -668,6 +667,20 @@ export default function MesocyclePage() {
                     </g>
                   );
                 })}
+
+                {microcycleGraphData.points.map((point, index) => (
+                  <rect
+                    key={`${point.id}-hover-zone`}
+                    x={point.x - microcycleGraphData.xStep / 2}
+                    y={18}
+                    width={microcycleGraphData.xStep}
+                    height={145}
+                    fill="transparent"
+                    style={{ cursor: 'crosshair' }}
+                    onMouseEnter={() => setHoveredGraphIndex(index)}
+                    onMouseMove={() => setHoveredGraphIndex(index)}
+                  />
+                ))}
 
                 <path
                   d={microcycleGraphData.volumeSplinePath}
@@ -687,10 +700,55 @@ export default function MesocyclePage() {
                   strokeLinejoin="round"
                   strokeDasharray="6 5"
                 />
+
+                {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (() => {
+                  const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
+                  const tooltipWidth = 170;
+                  const tooltipHeight = 52;
+                  const tooltipX = Math.max(
+                    8,
+                    Math.min(hoveredPoint.x - tooltipWidth / 2, microcycleGraphData.chartWidth - tooltipWidth - 8),
+                  );
+                  const volumeLabel = `${hoveredPoint.volume.toFixed(1)} h`;
+                  const avgLabel = `${(hoveredPoint.averageIntensity * 100).toFixed(0)}%`;
+
+                  return (
+                    <g>
+                      <line
+                        x1={hoveredPoint.x}
+                        y1={24}
+                        x2={hoveredPoint.x}
+                        y2={microcycleGraphData.yBase}
+                        stroke="#344956"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
+                      />
+                      <circle cx={hoveredPoint.x} cy={hoveredPoint.yVolume} r={4} fill="#2E4B59" />
+                      <circle cx={hoveredPoint.x} cy={hoveredPoint.yAverageIntensity} r={4} fill="#E9A857" />
+                      <rect
+                        x={tooltipX}
+                        y={10}
+                        width={tooltipWidth}
+                        height={tooltipHeight}
+                        rx={8}
+                        fill="#19232B"
+                        fillOpacity="0.94"
+                        stroke="#8AA2B3"
+                        strokeWidth="1"
+                      />
+                      <text x={tooltipX + 10} y={30} fontSize="11" fontWeight="700" fill="#E2EFF7">
+                        {`Volume: ${volumeLabel}`}
+                      </text>
+                      <text x={tooltipX + 10} y={46} fontSize="11" fontWeight="700" fill="#FFE1BA">
+                        {`Avg Intensity: ${avgLabel}`}
+                      </text>
+                    </g>
+                  );
+                })()}
               </svg>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume
               </span>
