@@ -304,8 +304,8 @@ export default function MesocyclePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
-      <div className="flex min-h-screen w-full flex-col">
+    <div className="min-h-screen w-full bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
         <header className="mt-6 rounded-[2rem] bg-transparent p-5">
           <div className="flex items-center gap-4">
             <Link
