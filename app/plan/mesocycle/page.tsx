@@ -31,6 +31,8 @@ type MicrocycleRow = {
   start_date: string;
   end_date: string;
   length_days: number | null;
+  target_volume_hours: number | null;
+  average_intensity: number | null;
   scheduled_workouts: unknown;
   is_recovery_week: boolean | null;
 };
@@ -109,6 +111,13 @@ function getFocusIntensityBase(focus: MesocycleFocus): number {
     default:
       return 0.65;
   }
+}
+
+function normalizeIntensity(value: number | null): number {
+  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) return 0;
+  if (value <= 1) return value;
+  if (value <= 10) return Math.min(value / 10, 1);
+  return Math.min(value / 100, 1);
 }
 
 function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
@@ -227,7 +236,7 @@ export default function MesocyclePage() {
 
       const { data: microcycleRows, error: microcycleError } = await supabase
         .from('microcycles')
-        .select('id, week_number, start_date, end_date, length_days, scheduled_workouts, is_recovery_week')
+        .select('id, week_number, start_date, end_date, length_days, target_volume_hours, average_intensity, scheduled_workouts, is_recovery_week')
         .in('id', allMicrocycleIds);
 
       if (microcycleError) {
@@ -379,12 +388,13 @@ export default function MesocyclePage() {
         const microcycle = plan.microcyclesById[microcycleId];
         if (!microcycle) return null;
 
-        const volume = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
+        const volume = typeof microcycle.target_volume_hours === 'number' ? microcycle.target_volume_hours : 0;
         const lengthDays = microcycle.length_days && microcycle.length_days > 0 ? microcycle.length_days : 7;
         const density = Math.min(volume / lengthDays, 1);
         const intensity = microcycle.is_recovery_week
           ? Math.max(0.25, baseIntensity * 0.62)
           : Math.min(1, baseIntensity + density * 0.3);
+        const averageIntensity = normalizeIntensity(microcycle.average_intensity);
 
         return {
           id: microcycle.id,
@@ -392,9 +402,23 @@ export default function MesocyclePage() {
           week: microcycle.week_number,
           volume,
           intensity,
+          averageIntensity,
+          averageIntensityRaw: microcycle.average_intensity,
         };
       })
-      .filter((entry): entry is { id: string; label: string; week: number; volume: number; intensity: number } => Boolean(entry));
+      .filter(
+        (
+          entry,
+        ): entry is {
+          id: string;
+          label: string;
+          week: number;
+          volume: number;
+          intensity: number;
+          averageIntensity: number;
+          averageIntensityRaw: number | null;
+        } => Boolean(entry),
+      );
 
     if (points.length === 0) return null;
 
@@ -555,6 +579,9 @@ export default function MesocyclePage() {
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-0.5 w-5 bg-[#9CC2AE]" />Intensity
                 </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
+                </span>
               </div>
             </div>
 
@@ -641,6 +668,25 @@ export default function MesocyclePage() {
                     .join(' ')}
                 />
 
+                <polyline
+                  fill="none"
+                  stroke="#E9A857"
+                  strokeWidth="3"
+                  strokeDasharray="6 5"
+                  points={microcycleGraphData.points
+                    .map((point, index) => {
+                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                      const leftPad = 24;
+                      const rightPad = 16;
+                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                      const x = leftPad + index * xStep + xStep * 0.38;
+                      const yBase = 158;
+                      const y = yBase - point.averageIntensity * 120;
+                      return `${x},${y}`;
+                    })
+                    .join(' ')}
+                />
+
                 {microcycleGraphData.points.map((point, index) => {
                   const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
                   const leftPad = 24;
@@ -651,6 +697,18 @@ export default function MesocyclePage() {
                   const y = yBase - point.intensity * 120;
 
                   return <circle key={`${point.id}-intensity`} cx={x} cy={y} r={4} fill="#9CC2AE" />;
+                })}
+
+                {microcycleGraphData.points.map((point, index) => {
+                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                  const leftPad = 24;
+                  const rightPad = 16;
+                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                  const x = leftPad + index * xStep + xStep * 0.38;
+                  const yBase = 158;
+                  const y = yBase - point.averageIntensity * 120;
+
+                  return <circle key={`${point.id}-avg-intensity`} cx={x} cy={y} r={3.5} fill="#E9A857" />;
                 })}
               </svg>
             </div>

@@ -78,6 +78,7 @@ The `microcycles` table defines specific training weeks or blocks, tracking expl
 | `target_distance_km` | `NUMERIC(6,2)` | Default `0.00` | Target training distance in km. |
 | `actual_volume_hours`| `NUMERIC(6,2)` | Default `0.00` | Completed training hours. |
 | `actual_distance_km` | `NUMERIC(6,2)` | Default `0.00` | Completed training distance in km. |
+| `average_intensity` | `NUMERIC(5,2)` | Default `0.00` | Target average intensity metric for the week (e.g., % FTP, IF, or average RPE). |
 | `scheduled_workouts` | `JSONB` | Default `'[]'::jsonb` | JSONB array mapping workout IDs to relative day numbers (`day_number`, `workout_id`, optional `notes`). |
 | `is_recovery_week` | `BOOLEAN` | Default `FALSE` | Flag indicating a deload/recovery week. |
 | `created_at` | `TIMESTAMPTZ` | Default `NOW()` | Record creation timestamp. |
