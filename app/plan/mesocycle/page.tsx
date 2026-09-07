@@ -724,7 +724,7 @@ export default function MesocyclePage() {
             </div>
 
             {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (
-              <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-[#8AA2B3] bg-[#19232B]/95 px-3 py-2 text-[11px] font-bold">
+              <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-lg border border-[#8AA2B3] bg-[#19232B]/95 px-3 py-2 text-[11px] font-bold">
                 <p className="text-[#E2EFF7]">
                   Volume: {microcycleGraphData.points[hoveredGraphIndex].volume.toFixed(1)} h
                 </p>
