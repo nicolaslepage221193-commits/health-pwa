@@ -282,6 +282,9 @@ export default function MesocyclePage() {
     if (!plan || plan.mesocycles.length === 0) return null;
 
     const pxPerDay = 6;
+    const axisInsetPx = 4;
+    const adjacentGapPx = 4;
+    const oneDayMs = 24 * 60 * 60 * 1000;
     const sortedMesocycles = [...plan.mesocycles].sort(
       (a, b) => parseDateOnly(a.startDate).getTime() - parseDateOnly(b.startDate).getTime(),
     );
@@ -289,7 +292,7 @@ export default function MesocyclePage() {
     const timelineStart = parseDateOnly(sortedMesocycles[0].startDate);
     const timelineEnd = parseDateOnly(sortedMesocycles[sortedMesocycles.length - 1].endDate);
     const totalDays = dayDiffInclusive(timelineStart, timelineEnd);
-    const totalWidth = totalDays * pxPerDay;
+    const totalWidth = totalDays * pxPerDay + axisInsetPx * 2;
     const today = new Date();
     const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
 
@@ -311,7 +314,7 @@ export default function MesocyclePage() {
       months.push({
         key: `${cursor.getUTCFullYear()}-${cursor.getUTCMonth() + 1}`,
         label: new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(cursor),
-        left: offsetDays * pxPerDay,
+        left: offsetDays * pxPerDay + axisInsetPx,
         width: monthDays * pxPerDay,
       });
 
@@ -321,16 +324,20 @@ export default function MesocyclePage() {
     const blocks = sortedMesocycles.map((mesocycle, index) => {
       const start = parseDateOnly(mesocycle.startDate);
       const end = parseDateOnly(mesocycle.endDate);
+      const nextMesocycle = sortedMesocycles[index + 1];
+      const nextStart = nextMesocycle ? parseDateOnly(nextMesocycle.startDate) : null;
       const leftDays = dayDiffInclusive(timelineStart, start) - 1;
       const durationDays = dayDiffInclusive(start, end);
+      const isBackToBack = nextStart ? nextStart.getTime() - end.getTime() === oneDayMs : false;
+      const visualWidth = Math.max(durationDays * pxPerDay - (isBackToBack ? adjacentGapPx : 0), 12);
       const isCompleted = end.getTime() < todayUtc.getTime();
       const isCurrent = start.getTime() <= todayUtc.getTime() && end.getTime() >= todayUtc.getTime();
 
       return {
         ...mesocycle,
         number: index + 1,
-        left: leftDays * pxPerDay,
-        width: durationDays * pxPerDay,
+        left: leftDays * pxPerDay + axisInsetPx,
+        width: visualWidth,
         durationDays,
         isCompleted,
         isCurrent,
@@ -451,14 +458,14 @@ export default function MesocyclePage() {
                             }
                             setSelectedMesocycleId(block.id);
                           }}
-                          className={`absolute top-0 h-36 rounded-2xl border p-3 text-left shadow transition ${
+                          className={`absolute top-0 h-36 rounded-lg border p-3 text-left shadow transition ${
                             isSelected
-                              ? 'z-20 border-emerald-200 bg-emerald-600 text-white ring-2 ring-emerald-200/80'
+                              ? 'z-20 border-[#7AA58F] bg-[#1A232A] text-[#ECF6EF] ring-2 ring-[#7AA58F]/80'
                               : block.isCompleted
-                                ? 'z-10 border-sky-200/80 bg-sky-700/85 text-white'
+                                ? 'z-10 border-[#53636E] bg-[#10171D] text-slate-200'
                                 : block.isCurrent
-                                  ? 'z-10 border-lime-200/80 bg-lime-700/85 text-white'
-                                  : 'z-10 border-slate-200 bg-white/95 text-slate-800'
+                                  ? 'z-10 border-[#6C8CA0] bg-[#24313A] text-[#EAF1F5]'
+                                  : 'z-10 border-[#31414B] bg-[linear-gradient(135deg,#1A232A,#10171D)] text-slate-100'
                           }`}
                           style={{ left: `${block.left}px`, width: `${block.width}px` }}
                         >
