@@ -16,11 +16,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
         <main
-          className={`flex-1 min-w-0 px-4 py-6 transition-all duration-300 sm:px-6 lg:px-10 ${
+          className={`flex-1 min-w-0 transition-all duration-300 ${
             sidebarCollapsed ? 'ml-20' : 'ml-20 lg:ml-64'
           }`}
         >
-          <div className="mx-auto w-full max-w-screen-xl">
+          <div className="w-full max-w-screen-xl">
             {children}
           </div>
         </main>
