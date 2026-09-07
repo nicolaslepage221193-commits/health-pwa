@@ -92,6 +92,25 @@ function endOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 }
 
+function getFocusIntensityBase(focus: MesocycleFocus): number {
+  switch (focus) {
+    case 'BASE':
+      return 0.62;
+    case 'BUILD':
+      return 0.74;
+    case 'PEAK':
+      return 0.9;
+    case 'TAPER':
+      return 0.52;
+    case 'RECOVERY':
+      return 0.42;
+    case 'TRANSITION':
+      return 0.36;
+    default:
+      return 0.65;
+  }
+}
+
 function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
   if (!Array.isArray(raw)) return [];
 
@@ -351,6 +370,42 @@ export default function MesocyclePage() {
     };
   }, [plan]);
 
+  const microcycleGraphData = useMemo(() => {
+    if (!plan || !currentMesocycle) return null;
+
+    const baseIntensity = getFocusIntensityBase(currentMesocycle.focus);
+    const points = currentMesocycle.microcycleIds
+      .map((microcycleId, index) => {
+        const microcycle = plan.microcyclesById[microcycleId];
+        if (!microcycle) return null;
+
+        const volume = parseScheduledWorkouts(microcycle.scheduled_workouts).length;
+        const lengthDays = microcycle.length_days && microcycle.length_days > 0 ? microcycle.length_days : 7;
+        const density = Math.min(volume / lengthDays, 1);
+        const intensity = microcycle.is_recovery_week
+          ? Math.max(0.25, baseIntensity * 0.62)
+          : Math.min(1, baseIntensity + density * 0.3);
+
+        return {
+          id: microcycle.id,
+          label: `M${index + 1}`,
+          week: microcycle.week_number,
+          volume,
+          intensity,
+        };
+      })
+      .filter((entry): entry is { id: string; label: string; week: number; volume: number; intensity: number } => Boolean(entry));
+
+    if (points.length === 0) return null;
+
+    const maxVolume = Math.max(...points.map((point) => point.volume), 1);
+
+    return {
+      points,
+      maxVolume,
+    };
+  }, [plan, currentMesocycle]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] px-6 py-10 text-slate-300">
@@ -488,6 +543,119 @@ export default function MesocyclePage() {
             </div>
           </div>
         </section>
+
+        {microcycleGraphData && (
+          <section className="mt-2 w-full rounded-[1.5rem] bg-[#c4ced6]/90 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
+              <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-[#5A747F]" />Volume
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-0.5 w-5 bg-[#9CC2AE]" />Intensity
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <svg
+                width={Math.max(360, microcycleGraphData.points.length * 90)}
+                height={210}
+                viewBox={`0 0 ${Math.max(360, microcycleGraphData.points.length * 90)} 210`}
+                className="block"
+                role="img"
+                aria-label="Microcycle volume and intensity chart"
+              >
+                {microcycleGraphData.points.map((point, index) => {
+                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                  const leftPad = 24;
+                  const rightPad = 16;
+                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                  const x = leftPad + index * xStep + xStep * 0.15;
+                  const barWidth = xStep * 0.45;
+                  const maxBarHeight = 120;
+                  const barHeight = (point.volume / microcycleGraphData.maxVolume) * maxBarHeight;
+                  const yBase = 158;
+
+                  return (
+                    <g key={point.id}>
+                      <rect
+                        x={x}
+                        y={yBase - barHeight}
+                        width={barWidth}
+                        height={barHeight}
+                        rx={4}
+                        fill="#5A747F"
+                        opacity={0.9}
+                      />
+                      <text
+                        x={x + barWidth / 2}
+                        y={yBase - barHeight - 6}
+                        textAnchor="middle"
+                        fontSize="11"
+                        fontWeight="700"
+                        fill="#1F2A33"
+                      >
+                        {point.volume}
+                      </text>
+                      <text
+                        x={x + barWidth / 2}
+                        y={188}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fontWeight="800"
+                        fill="#24313A"
+                      >
+                        {point.label}
+                      </text>
+                      <text
+                        x={x + barWidth / 2}
+                        y={200}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="700"
+                        fill="#415460"
+                      >
+                        W{point.week}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <polyline
+                  fill="none"
+                  stroke="#9CC2AE"
+                  strokeWidth="3"
+                  points={microcycleGraphData.points
+                    .map((point, index) => {
+                      const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                      const leftPad = 24;
+                      const rightPad = 16;
+                      const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                      const x = leftPad + index * xStep + xStep * 0.38;
+                      const yBase = 158;
+                      const y = yBase - point.intensity * 120;
+                      return `${x},${y}`;
+                    })
+                    .join(' ')}
+                />
+
+                {microcycleGraphData.points.map((point, index) => {
+                  const chartWidth = Math.max(360, microcycleGraphData.points.length * 90);
+                  const leftPad = 24;
+                  const rightPad = 16;
+                  const xStep = (chartWidth - leftPad - rightPad) / microcycleGraphData.points.length;
+                  const x = leftPad + index * xStep + xStep * 0.38;
+                  const yBase = 158;
+                  const y = yBase - point.intensity * 120;
+
+                  return <circle key={`${point.id}-intensity`} cx={x} cy={y} r={4} fill="#9CC2AE" />;
+                })}
+              </svg>
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 w-full rounded-[2rem] bg-[#c4ced6] p-5">
           <h2 className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-900">
