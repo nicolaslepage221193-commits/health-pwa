@@ -705,10 +705,7 @@ export default function MesocyclePage() {
                   const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
                   const tooltipWidth = 170;
                   const tooltipHeight = 52;
-                  const tooltipX = Math.max(
-                    8,
-                    Math.min(hoveredPoint.x - tooltipWidth / 2, microcycleGraphData.chartWidth - tooltipWidth - 8),
-                  );
+                  const tooltipX = microcycleGraphData.chartWidth - tooltipWidth - 8;
                   const volumeLabel = `${hoveredPoint.volume.toFixed(1)} h`;
                   const avgLabel = `${(hoveredPoint.averageIntensity * 100).toFixed(0)}%`;
 
