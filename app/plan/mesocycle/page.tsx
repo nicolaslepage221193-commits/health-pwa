@@ -451,17 +451,10 @@ export default function MesocyclePage() {
 
     if (points.length === 0) return null;
 
-    const volumeValues = points.map((point) => point.volume);
-    const intensityValues = points.map((point) => point.averageIntensity);
-    const maxVolume = Math.max(...volumeValues, 1);
-    const minVolume = Math.min(...volumeValues);
-    const avgVolume = volumeValues.reduce((sum, value) => sum + value, 0) / volumeValues.length;
-    const maxIntensity = Math.max(...intensityValues, 0);
-    const minIntensity = Math.min(...intensityValues);
-    const avgIntensity = intensityValues.reduce((sum, value) => sum + value, 0) / intensityValues.length;
+    const maxVolume = Math.max(...points.map((point) => point.volume), 1);
     const chartWidth = Math.max(360, points.length * 90);
-    const leftPad = 48;
-    const rightPad = 52;
+    const leftPad = 24;
+    const rightPad = 16;
     const xStep = (chartWidth - leftPad - rightPad) / points.length;
     const yBase = 158;
     const chartHeight = 120;
@@ -496,17 +489,9 @@ export default function MesocyclePage() {
     return {
       points: plotPoints,
       maxVolume,
-      minVolume,
-      avgVolume,
-      maxIntensity,
-      minIntensity,
-      avgIntensity,
       chartWidth,
-      leftPad,
-      rightPad,
       xStep,
       yBase,
-      chartHeight,
       volumeSplinePath,
       averageIntensitySplinePath,
     };
@@ -656,100 +641,17 @@ export default function MesocyclePage() {
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start">
-              <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <svg
-                  width="100%"
-                  height={260}
-                  viewBox={`0 0 ${microcycleGraphData.chartWidth} 260`}
-                  className="block w-full"
-                  role="img"
-                  aria-label="Microcycle volume and average intensity chart"
-                  onMouseLeave={() => setHoveredGraphIndex(null)}
-                >
-                <line
-                  x1={microcycleGraphData.leftPad}
-                  y1={microcycleGraphData.yBase - microcycleGraphData.chartHeight}
-                  x2={microcycleGraphData.leftPad}
-                  y2={microcycleGraphData.yBase}
-                  stroke="#455A66"
-                  strokeWidth="1.5"
-                />
-
-                <line
-                  x1={microcycleGraphData.chartWidth - microcycleGraphData.rightPad}
-                  y1={microcycleGraphData.yBase - microcycleGraphData.chartHeight}
-                  x2={microcycleGraphData.chartWidth - microcycleGraphData.rightPad}
-                  y2={microcycleGraphData.yBase}
-                  stroke="#6C6454"
-                  strokeWidth="1.5"
-                />
-
-                {[
-                  { key: 'max', label: `Max ${microcycleGraphData.maxVolume.toFixed(1)}`, value: microcycleGraphData.maxVolume },
-                  { key: 'avg', label: `Avg ${microcycleGraphData.avgVolume.toFixed(1)}`, value: microcycleGraphData.avgVolume },
-                  { key: 'min', label: `Min ${microcycleGraphData.minVolume.toFixed(1)}`, value: microcycleGraphData.minVolume },
-                ].map((tick) => {
-                  const y =
-                    microcycleGraphData.yBase -
-                    (tick.value / Math.max(microcycleGraphData.maxVolume, 1)) * microcycleGraphData.chartHeight;
-
-                  return (
-                    <g key={`left-${tick.key}`}>
-                      <line
-                        x1={microcycleGraphData.leftPad - 5}
-                        y1={y}
-                        x2={microcycleGraphData.leftPad}
-                        y2={y}
-                        stroke="#455A66"
-                        strokeWidth="1"
-                      />
-                      <text
-                        x={microcycleGraphData.leftPad - 8}
-                        y={y + 3}
-                        textAnchor="end"
-                        fontSize="9"
-                        fontWeight="700"
-                        fill="#2F4653"
-                      >
-                        {tick.label}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {[
-                  { key: 'max', label: `Max ${(microcycleGraphData.maxIntensity * 100).toFixed(0)}%`, value: microcycleGraphData.maxIntensity },
-                  { key: 'avg', label: `Avg ${(microcycleGraphData.avgIntensity * 100).toFixed(0)}%`, value: microcycleGraphData.avgIntensity },
-                  { key: 'min', label: `Min ${(microcycleGraphData.minIntensity * 100).toFixed(0)}%`, value: microcycleGraphData.minIntensity },
-                ].map((tick) => {
-                  const y = microcycleGraphData.yBase - tick.value * microcycleGraphData.chartHeight;
-
-                  return (
-                    <g key={`right-${tick.key}`}>
-                      <line
-                        x1={microcycleGraphData.chartWidth - microcycleGraphData.rightPad}
-                        y1={y}
-                        x2={microcycleGraphData.chartWidth - microcycleGraphData.rightPad + 5}
-                        y2={y}
-                        stroke="#6C6454"
-                        strokeWidth="1"
-                      />
-                      <text
-                        x={microcycleGraphData.chartWidth - microcycleGraphData.rightPad + 8}
-                        y={y + 3}
-                        textAnchor="start"
-                        fontSize="9"
-                        fontWeight="700"
-                        fill="#6D5131"
-                      >
-                        {tick.label}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {microcycleGraphData.points.map((point) => {
+            <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <svg
+                width="100%"
+                height={210}
+                viewBox={`0 0 ${microcycleGraphData.chartWidth} 210`}
+                className="block w-full"
+                role="img"
+                aria-label="Microcycle volume and average intensity chart"
+                onMouseLeave={() => setHoveredGraphIndex(null)}
+              >
+                {microcycleGraphData.points.map((point, index) => {
                   return (
                     <g key={point.id}>
                       <text
@@ -803,7 +705,6 @@ export default function MesocyclePage() {
                   const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
                   const tooltipWidth = 170;
                   const tooltipHeight = 52;
-                  const tooltipY = 198;
                   const tooltipX = Math.max(
                     8,
                     Math.min(hoveredPoint.x - tooltipWidth / 2, microcycleGraphData.chartWidth - tooltipWidth - 8),
@@ -826,7 +727,7 @@ export default function MesocyclePage() {
                       <circle cx={hoveredPoint.x} cy={hoveredPoint.yAverageIntensity} r={4} fill="#E9A857" />
                       <rect
                         x={tooltipX}
-                        y={tooltipY}
+                        y={10}
                         width={tooltipWidth}
                         height={tooltipHeight}
                         rx={8}
@@ -835,26 +736,25 @@ export default function MesocyclePage() {
                         stroke="#8AA2B3"
                         strokeWidth="1"
                       />
-                      <text x={tooltipX + 10} y={tooltipY + 20} fontSize="11" fontWeight="700" fill="#E2EFF7">
+                      <text x={tooltipX + 10} y={30} fontSize="11" fontWeight="700" fill="#E2EFF7">
                         {`Volume: ${volumeLabel}`}
                       </text>
-                      <text x={tooltipX + 10} y={tooltipY + 36} fontSize="11" fontWeight="700" fill="#FFE1BA">
+                      <text x={tooltipX + 10} y={46} fontSize="11" fontWeight="700" fill="#FFE1BA">
                         {`Avg Intensity: ${avgLabel}`}
                       </text>
                     </g>
                   );
                 })()}
-                </svg>
-              </div>
+              </svg>
+            </div>
 
-              <div className="flex shrink-0 flex-row flex-wrap items-center justify-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700 lg:min-w-[170px] lg:flex-col lg:items-start lg:justify-start lg:gap-3">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
-                </span>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
+              </span>
             </div>
           </section>
         )}
