@@ -458,22 +458,6 @@ export default function MesocyclePage() {
     const yBase = 158;
     const chartHeight = 120;
 
-    const volumePolylinePoints = points
-      .map((point, index) => {
-        const x = leftPad + index * xStep + xStep * 0.38;
-        const y = yBase - (point.volume / maxVolume) * chartHeight;
-        return `${x},${y}`;
-      })
-      .join(' ');
-
-    const averageIntensityPolylinePoints = points
-      .map((point, index) => {
-        const x = leftPad + index * xStep + xStep * 0.38;
-        const y = yBase - point.averageIntensity * chartHeight;
-        return `${x},${y}`;
-      })
-      .join(' ');
-
     const volumeSplinePath = buildMonotoneSplinePath(
       points.map((point, index) => ({
         x: leftPad + index * xStep + xStep * 0.38,
@@ -481,13 +465,19 @@ export default function MesocyclePage() {
       })),
     );
 
+    const averageIntensitySplinePath = buildMonotoneSplinePath(
+      points.map((point, index) => ({
+        x: leftPad + index * xStep + xStep * 0.38,
+        y: yBase - point.averageIntensity * chartHeight,
+      })),
+    );
+
     return {
       points,
       maxVolume,
       chartWidth,
-      volumePolylinePoints,
-      averageIntensityPolylinePoints,
       volumeSplinePath,
+      averageIntensitySplinePath,
     };
   }, [plan, currentMesocycle]);
 
@@ -631,19 +621,8 @@ export default function MesocyclePage() {
 
         {microcycleGraphData && (
           <section className="mt-2 w-full rounded-[1.5rem] bg-[#c4ced6]/90 p-4">
-            <div className="flex items-center justify-between">
+            <div>
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
-              <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#5A747F]" />Volume
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume (Spline)
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
-                </span>
-              </div>
             </div>
 
             <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -686,26 +665,9 @@ export default function MesocyclePage() {
                       >
                         {point.label}
                       </text>
-                      <text
-                        x={x}
-                        y={200}
-                        textAnchor="middle"
-                        fontSize="9"
-                        fontWeight="700"
-                        fill="#415460"
-                      >
-                        W{point.week}
-                      </text>
                     </g>
                   );
                 })}
-
-                <polyline
-                  fill="none"
-                  stroke="#5A747F"
-                  strokeWidth="3"
-                  points={microcycleGraphData.volumePolylinePoints}
-                />
 
                 <path
                   d={microcycleGraphData.volumeSplinePath}
@@ -716,14 +678,25 @@ export default function MesocyclePage() {
                   strokeLinejoin="round"
                 />
 
-                <polyline
+                <path
+                  d={microcycleGraphData.averageIntensitySplinePath}
                   fill="none"
                   stroke="#E9A857"
                   strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   strokeDasharray="6 5"
-                  points={microcycleGraphData.averageIntensityPolylinePoints}
                 />
               </svg>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-5 bg-[#2E4B59]" />Volume
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-0.5 w-5 bg-[#E9A857]" />Avg Intensity
+              </span>
             </div>
           </section>
         )}
