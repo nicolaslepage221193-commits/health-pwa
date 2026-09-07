@@ -20,7 +20,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             sidebarCollapsed ? 'ml-20' : 'ml-20 lg:ml-64'
           }`}
         >
-          <div className="w-full max-w-screen-xl">
+          <div className="w-full">
             {children}
           </div>
         </main>
