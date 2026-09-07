@@ -641,17 +641,16 @@ export default function MesocyclePage() {
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
             </div>
 
-            <div className="relative mt-3">
-              <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <svg
-                  width="100%"
-                  height={210}
-                  viewBox={`0 0 ${microcycleGraphData.chartWidth} 210`}
-                  className="block w-full"
-                  role="img"
-                  aria-label="Microcycle volume and average intensity chart"
-                  onMouseLeave={() => setHoveredGraphIndex(null)}
-                >
+            <div className="mt-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <svg
+                width="100%"
+                height={210}
+                viewBox={`0 0 ${microcycleGraphData.chartWidth} 210`}
+                className="block w-full"
+                role="img"
+                aria-label="Microcycle volume and average intensity chart"
+                onMouseLeave={() => setHoveredGraphIndex(null)}
+              >
                 {microcycleGraphData.points.map((point, index) => {
                   return (
                     <g key={point.id}>
@@ -702,45 +701,38 @@ export default function MesocyclePage() {
                   strokeDasharray="6 5"
                 />
 
-                  {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (() => {
-                    const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
+                {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (() => {
+                  const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
 
-                    return (
-                      <g>
-                        <line
-                          x1={hoveredPoint.x}
-                          y1={24}
-                          x2={hoveredPoint.x}
-                          y2={microcycleGraphData.yBase}
-                          stroke="#344956"
-                          strokeWidth="1.5"
-                          strokeDasharray="4 4"
-                        />
-                        <circle cx={hoveredPoint.x} cy={hoveredPoint.yVolume} r={4} fill="#2E4B59" />
-                        <circle cx={hoveredPoint.x} cy={hoveredPoint.yAverageIntensity} r={4} fill="#E9A857" />
-                      </g>
-                    );
-                  })()}
-                </svg>
-              </div>
-
-              {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (() => {
-                const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
-                const tooltipHeight = 52;
-                const avgY = (hoveredPoint.yVolume + hoveredPoint.yAverageIntensity) / 2;
-                const tooltipTop = Math.max(0, Math.min(210 - tooltipHeight, avgY - tooltipHeight / 2));
-
-                return (
-                  <div
-                    className="pointer-events-none absolute right-2 rounded-lg border border-[#8AA2B3] bg-[#19232B]/95 px-3 py-2 text-[11px] font-bold"
-                    style={{ top: `${tooltipTop}px` }}
-                  >
-                    <p className="text-[#E2EFF7]">Volume: {hoveredPoint.volume.toFixed(1)} h</p>
-                    <p className="text-[#FFE1BA]">Avg Intensity: {(hoveredPoint.averageIntensity * 100).toFixed(0)}%</p>
-                  </div>
-                );
-              })()}
+                  return (
+                    <g>
+                      <line
+                        x1={hoveredPoint.x}
+                        y1={24}
+                        x2={hoveredPoint.x}
+                        y2={microcycleGraphData.yBase}
+                        stroke="#344956"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
+                      />
+                      <circle cx={hoveredPoint.x} cy={hoveredPoint.yVolume} r={4} fill="#2E4B59" />
+                      <circle cx={hoveredPoint.x} cy={hoveredPoint.yAverageIntensity} r={4} fill="#E9A857" />
+                    </g>
+                  );
+                })()}
+              </svg>
             </div>
+
+            {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (
+              <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-[#8AA2B3] bg-[#19232B]/95 px-3 py-2 text-[11px] font-bold">
+                <p className="text-[#E2EFF7]">
+                  Volume: {microcycleGraphData.points[hoveredGraphIndex].volume.toFixed(1)} h
+                </p>
+                <p className="text-[#FFE1BA]">
+                  Avg Intensity: {(microcycleGraphData.points[hoveredGraphIndex].averageIntensity * 100).toFixed(0)}%
+                </p>
+              </div>
+            )}
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
               <span className="inline-flex items-center gap-1.5">
