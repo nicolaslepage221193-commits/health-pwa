@@ -636,7 +636,7 @@ export default function MesocyclePage() {
         </section>
 
         {microcycleGraphData && (
-          <section className="mt-2 w-full rounded-[1.5rem] bg-[#c4ced6]/90 p-4">
+          <section className="relative mt-2 w-full rounded-[1.5rem] bg-[#c4ced6]/90 p-4">
             <div>
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-800">Microcycle Load Graph</h3>
             </div>
@@ -703,11 +703,6 @@ export default function MesocyclePage() {
 
                 {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (() => {
                   const hoveredPoint = microcycleGraphData.points[hoveredGraphIndex];
-                  const tooltipWidth = 170;
-                  const tooltipHeight = 52;
-                  const tooltipX = microcycleGraphData.chartWidth - tooltipWidth - 8;
-                  const volumeLabel = `${hoveredPoint.volume.toFixed(1)} h`;
-                  const avgLabel = `${(hoveredPoint.averageIntensity * 100).toFixed(0)}%`;
 
                   return (
                     <g>
@@ -722,28 +717,22 @@ export default function MesocyclePage() {
                       />
                       <circle cx={hoveredPoint.x} cy={hoveredPoint.yVolume} r={4} fill="#2E4B59" />
                       <circle cx={hoveredPoint.x} cy={hoveredPoint.yAverageIntensity} r={4} fill="#E9A857" />
-                      <rect
-                        x={tooltipX}
-                        y={10}
-                        width={tooltipWidth}
-                        height={tooltipHeight}
-                        rx={8}
-                        fill="#19232B"
-                        fillOpacity="0.94"
-                        stroke="#8AA2B3"
-                        strokeWidth="1"
-                      />
-                      <text x={tooltipX + 10} y={30} fontSize="11" fontWeight="700" fill="#E2EFF7">
-                        {`Volume: ${volumeLabel}`}
-                      </text>
-                      <text x={tooltipX + 10} y={46} fontSize="11" fontWeight="700" fill="#FFE1BA">
-                        {`Avg Intensity: ${avgLabel}`}
-                      </text>
                     </g>
                   );
                 })()}
               </svg>
             </div>
+
+            {hoveredGraphIndex !== null && microcycleGraphData.points[hoveredGraphIndex] && (
+              <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-[#8AA2B3] bg-[#19232B]/95 px-3 py-2 text-[11px] font-bold">
+                <p className="text-[#E2EFF7]">
+                  Volume: {microcycleGraphData.points[hoveredGraphIndex].volume.toFixed(1)} h
+                </p>
+                <p className="text-[#FFE1BA]">
+                  Avg Intensity: {(microcycleGraphData.points[hoveredGraphIndex].averageIntensity * 100).toFixed(0)}%
+                </p>
+              </div>
+            )}
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-700">
               <span className="inline-flex items-center gap-1.5">
