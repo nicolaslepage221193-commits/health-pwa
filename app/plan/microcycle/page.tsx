@@ -598,7 +598,10 @@ export default function MicrocyclePage() {
                     }`}
                   >
                     {isWorkoutPlanned ? (
-                      <div className="flex w-full flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                      <Link
+                        href={`/plan/Workout?microcycleId=${currentMicrocycle.id}&workoutId=${plannedWorkout?.id || ''}&day=${day.key}`}
+                        className="flex w-full flex-col justify-between gap-4 rounded-[1.25rem] p-1 transition hover:bg-black/10 sm:flex-row sm:items-start"
+                      >
                         <div>
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/15">
@@ -619,7 +622,7 @@ export default function MicrocyclePage() {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     ) : (
                       <div className={`flex w-full items-center justify-center rounded-[1.75rem] border p-4 ${fallbackSportStyles.cardClass}`}>
                         <span className="text-base font-black uppercase tracking-[0.28em] text-slate-100">
