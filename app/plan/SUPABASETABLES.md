@@ -19,6 +19,7 @@ This document outlines the database schema and structure for managing endurance 
 
 - **`sport_type`**: `'RUN'`, `'CYCLE'`, `'SWIM'`
 - **`mesocycle_focus`**: `'BASE'`, `'BUILD'`, `'PEAK'`, `'TAPER'`, `'RECOVERY'`, `'TRANSITION'`
+- **`intensity_mode`**: `'WATTS'`, `'FTP_PERCENT'` — added by `supabase/migrations/20260911_cardio_workout_builder.sql` for the cardio workout builder.
 
 ---
 
@@ -103,6 +104,24 @@ The `planned_workouts` table acts as a template/workout library containing reusa
 | `category` | `TEXT` | Default `'General'` | Grouping classification (e.g., `'Aerobic Base'`, `'Neuromuscular'`). |
 | `tags` | `TEXT[]` | Default `'{}'` | Search/filter keywords (e.g., `['sweet_spot', 'intervals']`). |
 | `estimated_tss` | `INT` | Default `0` | Estimated Training Stress Score for workload calculations. |
+| `structure` | `JSONB` | Default `'[]'::jsonb` | Ordered array of workout segments built by the cardio builder: `{ id, type: 'WARMUP'\|'STEADY'\|'INTERVAL'\|'FREE'\|'COOLDOWN', durationSec, intensityType, intensityValue, repeats?, restDurationSec?, restIntensityValue? }`. Empty for legacy/non-structured workouts. |
+| `intensity_mode` | `intensity_mode` | `NOT NULL`, Default `'FTP_PERCENT'` | Whether the workout was authored in raw watts or %FTP; used as the default toggle state when re-editing. |
+| `ftp_used_watts` | `INT` | Optional | Athlete FTP (watts) in effect when the workout was authored, used to convert stored intensities between watts and %FTP. |
+| `created_at` | `TIMESTAMPTZ` | Default `NOW()` | Record creation timestamp. |
+| `updated_at` | `TIMESTAMPTZ` | Default `NOW()` | Record last modification timestamp. |
+
+---
+
+### E. `user_settings`
+
+Added by `supabase/migrations/20260911_cardio_workout_builder.sql` to store athlete-level settings for the cardio workout builder. The app has no auth flow yet, so `user_id` is nullable and currently unenforced.
+
+| Field Name | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY`, Default `uuid_generate_v4()` | Unique identifier for the settings row. |
+| `user_id` | `UUID` | `FK -> auth.users.id`, `UNIQUE` | Owning athlete once auth is wired up; `NULL` today. |
+| `ftp_watts` | `INT` | Optional | Athlete's Functional Threshold Power in watts, used for watts/%FTP conversion. |
+| `preferred_intensity_mode` | `intensity_mode` | `NOT NULL`, Default `'FTP_PERCENT'` | Last-used intensity input mode in the builder. |
 | `created_at` | `TIMESTAMPTZ` | Default `NOW()` | Record creation timestamp. |
 | `updated_at` | `TIMESTAMPTZ` | Default `NOW()` | Record last modification timestamp. |
 
