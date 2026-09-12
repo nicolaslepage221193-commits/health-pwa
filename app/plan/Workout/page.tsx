@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity, Bike, ChevronLeft, Clock3, Dumbbell, Gauge, Route, Waves } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Activity, ArrowRight, Bike, CheckCircle2, ChevronLeft, Clock3, Dumbbell, Gauge, Play, Route, Target, TrendingUp, Waves } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useWorkout } from '../../context/WorkoutContext';
 import { supabase } from '../../supabase';
 
 type SportType = 'RUN' | 'CYCLE' | 'SWIM';
+type WorkoutMode = 'CARDIO' | 'STRENGTH';
 
 type ScheduledWorkoutEntry = {
 	dayNumber: number;
@@ -67,7 +70,25 @@ interface MicrocycleView {
 	isRecoveryWeek: boolean;
 }
 
-type WorkoutMode = 'CARDIO' | 'STRENGTH';
+interface CardioLog {
+	durationMinutes: number;
+	distanceKm: number;
+	avgPace: number;
+	rpe: number;
+	completedAt: string;
+	notes?: string;
+}
+
+interface LoggedStrengthExercise {
+	name: string;
+	sets: Array<{ weight: number; reps: number }>;
+}
+
+interface LoggedStrengthWorkout {
+	completedAt: string;
+	exercises: LoggedStrengthExercise[];
+	note?: string;
+}
 
 function toDateKey(date: Date): string {
 	const year = date.getFullYear();
@@ -105,11 +126,7 @@ function parseScheduledWorkouts(raw: unknown): ScheduledWorkoutEntry[] {
 
 			if (!Number.isInteger(dayNumber) || dayNumber < 1 || !workoutId) return null;
 
-			const entry: ScheduledWorkoutEntry = {
-				dayNumber,
-				workoutId,
-			};
-
+			const entry: ScheduledWorkoutEntry = { dayNumber, workoutId };
 			if (notes) entry.notes = notes;
 			return entry;
 		})
@@ -130,9 +147,7 @@ function resolveWorkoutMode(workout: WorkoutDetail): WorkoutMode {
 		workout.workoutType || '',
 		workout.category || '',
 		workout.tags.join(' '),
-	]
-		.join(' ')
-		.toLowerCase();
+	].join(' ').toLowerCase();
 
 	const strengthPattern = /(lift|strength|hypertrophy|resistance|barbell|dumbbell|squat|deadlift|bench|press|pull|row|gym)/;
 	if (strengthPattern.test(haystack)) return 'STRENGTH';
@@ -150,12 +165,32 @@ function getSportIcon(sport: SportType) {
 	}
 }
 
+function getStoredWorkoutLogs(workoutId: string) {
+	if (typeof window === 'undefined') return { cardio: null as CardioLog | null, strength: null as LoggedStrengthWorkout | null };
+
+	try {
+		const cardioRaw = window.localStorage.getItem(`healthapp_cardio_log_${workoutId}`);
+		const strengthRaw = window.localStorage.getItem(`healthapp_strength_log_${workoutId}`);
+
+		return {
+			cardio: cardioRaw ? (JSON.parse(cardioRaw) as CardioLog) : null,
+			strength: strengthRaw ? (JSON.parse(strengthRaw) as LoggedStrengthWorkout) : null,
+		};
+	} catch {
+		return { cardio: null, strength: null };
+	}
+}
+
 export default function WorkoutDetailPage() {
+	const router = useRouter();
+	const { session } = useWorkout();
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const [microcycle, setMicrocycle] = useState<MicrocycleView | null>(null);
 	const [dayItems, setDayItems] = useState<DayItem[]>([]);
 	const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+	const [cardioLog, setCardioLog] = useState<CardioLog | null>(null);
+	const [strengthLog, setStrengthLog] = useState<LoggedStrengthWorkout | null>(null);
 
 	useEffect(() => {
 		async function fetchWorkoutDetail() {
@@ -238,7 +273,6 @@ export default function WorkoutDetailPage() {
 			}
 
 			const dayList = getDaysInRange(microcycleRow.start_date, microcycleRow.end_date);
-
 			const mappedDays: DayItem[] = dayList.map((day, index) => {
 				const dayNumber = index + 1;
 				const scheduled = scheduledEntries.find((entry) => entry.dayNumber === dayNumber);
@@ -294,19 +328,66 @@ export default function WorkoutDetailPage() {
 		return dayItems.find((day) => day.key === selectedDayKey) || dayItems[0] || null;
 	}, [dayItems, selectedDayKey]);
 
+	const selectedWorkout = selectedDay?.workout || null;
+	const selectedMode = selectedWorkout ? resolveWorkoutMode(selectedWorkout) : null;
+
 	useEffect(() => {
 		if (!microcycle || !selectedDay || typeof window === 'undefined') return;
-
 		const params = new URLSearchParams();
 		params.set('microcycleId', microcycle.id);
 		params.set('day', selectedDay.key);
-
-		if (selectedDay.workout?.id) {
-			params.set('workoutId', selectedDay.workout.id);
-		}
-
+		if (selectedDay.workout?.id) params.set('workoutId', selectedDay.workout.id);
 		window.history.replaceState(null, '', `/plan/Workout?${params.toString()}`);
 	}, [microcycle, selectedDay]);
+
+	useEffect(() => {
+		if (!selectedWorkout) {
+			setCardioLog(null);
+			setStrengthLog(null);
+			return;
+		}
+
+		const { cardio, strength } = getStoredWorkoutLogs(selectedWorkout.id);
+		setCardioLog(cardio);
+		setStrengthLog(strength);
+	}, [selectedWorkout]);
+
+	useEffect(() => {
+		if (!selectedWorkout || !session || session.activePlan?.id !== selectedWorkout.id || !session.sessionExercises?.length) return;
+		const plannedStrengthLog: LoggedStrengthWorkout = {
+			completedAt: new Date().toISOString(),
+			exercises: session.sessionExercises,
+			note: 'Logged from current training session',
+		};
+		setStrengthLog(plannedStrengthLog);
+	}, [selectedWorkout, session]);
+
+	const markCardioComplete = () => {
+		if (!selectedWorkout || !selectedMode || selectedMode !== 'CARDIO') return;
+
+		const nextLog: CardioLog = {
+			durationMinutes: Math.max(selectedWorkout.targetDurationMinutes, selectedWorkout.targetDurationMinutes - 5),
+			distanceKm: Number((selectedWorkout.targetDistanceKm ?? 0) + 0.6),
+			avgPace: Number((selectedWorkout.targetDistanceKm ? (selectedWorkout.targetDurationMinutes / (selectedWorkout.targetDistanceKm || 1)) : 5.5).toFixed(1)),
+			rpe: Math.min(9, Math.max(6, (selectedWorkout.targetRpe ?? 7) + 1)),
+			completedAt: new Date().toISOString(),
+			notes: 'Completed from workout dashboard',
+		};
+
+		window.localStorage.setItem(`healthapp_cardio_log_${selectedWorkout.id}`, JSON.stringify(nextLog));
+		setCardioLog(nextLog);
+	};
+
+	const handleExecuteWorkout = () => {
+		if (!selectedWorkout) return;
+		router.push(`/workout/train?workoutId=${encodeURIComponent(selectedWorkout.id)}&title=${encodeURIComponent(selectedWorkout.title)}`);
+	};
+
+	const totalLoggedSets = strengthLog?.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0) ?? 0;
+	const totalLoggedVolume = strengthLog?.exercises.reduce(
+		(sum, exercise) => sum + exercise.sets.reduce((exerciseTotal, set) => exerciseTotal + set.weight * set.reps, 0),
+		0,
+	) ?? 0;
 
 	if (loading) {
 		return (
@@ -328,9 +409,6 @@ export default function WorkoutDetailPage() {
 		);
 	}
 
-	const selectedWorkout = selectedDay.workout;
-	const selectedMode = selectedWorkout ? resolveWorkoutMode(selectedWorkout) : null;
-
 	return (
 		<div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
 			<div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 pb-12 pt-8 sm:px-6">
@@ -344,7 +422,7 @@ export default function WorkoutDetailPage() {
 							<ChevronLeft size={28} />
 						</Link>
 						<div className="min-w-0 flex-1">
-							<h1 className="text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">Planned Workout</h1>
+							<h1 className="text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">Workout Dashboard</h1>
 							<p className="mt-2 text-sm font-medium text-slate-200/90 sm:text-base">
 								Week {microcycle.weekNumber} · {formatDateRange(microcycle.startDate, microcycle.endDate)}
 							</p>
@@ -358,7 +436,6 @@ export default function WorkoutDetailPage() {
 							{dayItems.map((day) => {
 								const isSelected = day.key === selectedDay.key;
 								const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day.date);
-
 								return (
 									<button
 										key={day.key}
@@ -390,42 +467,77 @@ export default function WorkoutDetailPage() {
 					{!selectedWorkout && (
 						<div className="mt-4 rounded-[1.5rem] border border-slate-400/40 bg-white/70 p-6">
 							<h2 className="text-2xl font-black uppercase tracking-tight">Recovery / Rest Day</h2>
-							<p className="mt-2 text-sm text-slate-700">
-								No planned workout is scheduled for this day in the selected microcycle.
-							</p>
+							<p className="mt-2 text-sm text-slate-700">No planned workout is scheduled for this day in the selected microcycle.</p>
 						</div>
 					)}
 
 					{selectedWorkout && selectedMode === 'CARDIO' && (
 						<div className="mt-4 rounded-[1.5rem] border border-[#5A747F]/40 bg-[linear-gradient(135deg,#5E7F92,#4A6070)] p-6 text-slate-100 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20">
-									{getSportIcon(selectedWorkout.sport)}
+							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20">{getSportIcon(selectedWorkout.sport)}</div>
+									<div>
+										<p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-200">Cardiovascular</p>
+										<h2 className="text-2xl font-black uppercase tracking-tight">{selectedWorkout.title}</h2>
+									</div>
 								</div>
-								<div>
-									<p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-200">Cardiovascular</p>
-									<h2 className="text-2xl font-black uppercase tracking-tight">{selectedWorkout.title}</h2>
-								</div>
+								{cardioLog ? (
+									<div className="flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">
+										<CheckCircle2 size={14} /> Completed
+									</div>
+								) : (
+									<div className="flex items-center gap-2 rounded-full bg-slate-200/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+										<Target size={14} /> Planned
+									</div>
+								)}
 							</div>
 
 							<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Duration</p>
-									<p className="mt-1 flex items-center gap-2 text-lg font-black"><Clock3 size={16} />{selectedWorkout.targetDurationMinutes} min</p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Distance</p>
-									<p className="mt-1 flex items-center gap-2 text-lg font-black"><Route size={16} />{selectedWorkout.targetDistanceKm ?? 0} km</p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">RPE</p>
-									<p className="mt-1 flex items-center gap-2 text-lg font-black"><Gauge size={16} />{selectedWorkout.targetRpe ?? '-'} </p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Type</p>
-									<p className="mt-1 text-lg font-black uppercase tracking-tight">{selectedWorkout.workoutType || 'General'}</p>
-								</div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Duration</p><p className="mt-1 flex items-center gap-2 text-lg font-black"><Clock3 size={16} />{selectedWorkout.targetDurationMinutes} min</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Distance</p><p className="mt-1 flex items-center gap-2 text-lg font-black"><Route size={16} />{selectedWorkout.targetDistanceKm ?? 0} km</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">RPE</p><p className="mt-1 flex items-center gap-2 text-lg font-black"><Gauge size={16} />{selectedWorkout.targetRpe ?? '-'}</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Type</p><p className="mt-1 text-lg font-black uppercase tracking-tight">{selectedWorkout.workoutType || 'General'}</p></div>
 							</div>
+
+							{cardioLog ? (
+								<div className="mt-6 rounded-2xl bg-slate-950/20 p-4">
+									<div className="flex items-center gap-2 text-emerald-100"><TrendingUp size={16} /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Completed vs planned</span></div>
+									<div className="mt-4 grid gap-3 sm:grid-cols-2">
+										<div className="rounded-xl bg-black/20 p-3">
+											<p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Planned</p>
+											<ul className="mt-2 space-y-2 text-sm">
+												<li>Duration: {selectedWorkout.targetDurationMinutes} min</li>
+												<li>Distance: {selectedWorkout.targetDistanceKm ?? 0} km</li>
+												<li>RPE: {selectedWorkout.targetRpe ?? '-'} </li>
+											</ul>
+										</div>
+										<div className="rounded-xl bg-emerald-500/10 p-3">
+											<p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Executed</p>
+											<ul className="mt-2 space-y-2 text-sm">
+												<li>Duration: {cardioLog.durationMinutes} min</li>
+												<li>Distance: {cardioLog.distanceKm} km</li>
+												<li>RPE: {cardioLog.rpe}</li>
+											</ul>
+										</div>
+									</div>
+								</div>
+							) : (
+								<div className="mt-6 rounded-2xl border border-dashed border-slate-300/60 bg-black/10 p-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+										<div>
+											<p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-200">Session status</p>
+											<h3 className="mt-2 text-xl font-black uppercase tracking-tight">Planned and pending completion</h3>
+										</div>
+										<button
+											type="button"
+											onClick={markCardioComplete}
+											className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-slate-800"
+										>
+											<CheckCircle2 size={16} /> Log completion
+										</button>
+									</div>
+								</div>
+							)}
 
 							{(selectedWorkout.description || selectedWorkout.notes) && (
 								<div className="mt-4 rounded-xl bg-black/20 p-4 text-sm leading-relaxed text-slate-100">
@@ -438,42 +550,94 @@ export default function WorkoutDetailPage() {
 
 					{selectedWorkout && selectedMode === 'STRENGTH' && (
 						<div className="mt-4 rounded-[1.5rem] border border-[#9B7A54]/45 bg-[linear-gradient(135deg,#8F6B49,#6E523A)] p-6 text-amber-50 shadow-[0_16px_40px_rgba(0,0,0,0.2)]">
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20">
-									<Dumbbell size={18} className="text-amber-100" />
+							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/20"><Dumbbell size={18} className="text-amber-100" /></div>
+									<div>
+										<p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-100/90">Weight Lifting</p>
+										<h2 className="text-2xl font-black uppercase tracking-tight">{selectedWorkout.title}</h2>
+									</div>
 								</div>
-								<div>
-									<p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-100/90">Weight Lifting</p>
-									<h2 className="text-2xl font-black uppercase tracking-tight">{selectedWorkout.title}</h2>
-								</div>
+								{strengthLog ? (
+									<div className="flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-50">
+										<CheckCircle2 size={14} /> Logged
+									</div>
+								) : (
+									<div className="flex items-center gap-2 rounded-full bg-amber-900/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-amber-100">
+										<Play size={14} /> Not started
+									</div>
+								)}
 							</div>
 
 							<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Session</p>
-									<p className="mt-1 text-lg font-black uppercase tracking-tight">{selectedWorkout.workoutType || 'Strength'}</p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Duration</p>
-									<p className="mt-1 text-lg font-black">{selectedWorkout.targetDurationMinutes} min</p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">RPE Target</p>
-									<p className="mt-1 text-lg font-black">{selectedWorkout.targetRpe ?? '-'}</p>
-								</div>
-								<div className="rounded-xl bg-black/20 p-3">
-									<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Estimated TSS</p>
-									<p className="mt-1 text-lg font-black">{selectedWorkout.estimatedTss ?? '-'}</p>
-								</div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Session</p><p className="mt-1 text-lg font-black uppercase tracking-tight">{selectedWorkout.workoutType || 'Strength'}</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Duration</p><p className="mt-1 text-lg font-black">{selectedWorkout.targetDurationMinutes} min</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">RPE Target</p><p className="mt-1 text-lg font-black">{selectedWorkout.targetRpe ?? '-'}</p></div>
+								<div className="rounded-xl bg-black/20 p-3"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Estimated TSS</p><p className="mt-1 text-lg font-black">{selectedWorkout.estimatedTss ?? '-'}</p></div>
 							</div>
 
 							<div className="mt-4 flex flex-wrap gap-2">
 								{(selectedWorkout.tags.length > 0 ? selectedWorkout.tags : ['strength']).map((tag) => (
-									<span key={tag} className="rounded-full bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]">
-										{tag}
-									</span>
+									<span key={tag} className="rounded-full bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]">{tag}</span>
 								))}
 							</div>
+
+							{strengthLog ? (
+								<div className="mt-6 rounded-2xl bg-slate-950/20 p-4">
+									<div className="flex items-center gap-2 text-emerald-100"><TrendingUp size={16} /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Plan vs executed</span></div>
+									<div className="mt-4 grid gap-3 lg:grid-cols-2">
+										<div className="rounded-xl bg-black/20 p-3">
+											<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/90">Planned session</p>
+											<ul className="mt-2 space-y-2 text-sm">
+												<li>Target duration: {selectedWorkout.targetDurationMinutes} min</li>
+												<li>Target RPE: {selectedWorkout.targetRpe ?? '-'} </li>
+												<li>Session type: {selectedWorkout.workoutType || 'Strength'}</li>
+											</ul>
+										</div>
+										<div className="rounded-xl bg-emerald-500/10 p-3">
+											<p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Executed</p>
+											<ul className="mt-2 space-y-2 text-sm">
+												<li>Sets logged: {totalLoggedSets}</li>
+												<li>Total volume: {totalLoggedVolume} lb·reps</li>
+												<li>Exercises: {strengthLog.exercises.length}</li>
+											</ul>
+										</div>
+									</div>
+									<div className="mt-4 space-y-3">
+										{strengthLog.exercises.map((exercise) => (
+											<div key={exercise.name} className="rounded-xl bg-black/15 p-3">
+												<div className="flex items-center justify-between gap-3">
+													<p className="font-black uppercase tracking-tight">{exercise.name}</p>
+													<span className="text-[10px] uppercase tracking-[0.2em] text-amber-100/70">{exercise.sets.length} sets</span>
+												</div>
+												<div className="mt-2 flex flex-wrap gap-2">
+													{exercise.sets.map((set, index) => (
+														<span key={`${exercise.name}-${index}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+															{set.weight} × {set.reps}
+														</span>
+													))}
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							) : (
+								<div className="mt-6 rounded-2xl border border-dashed border-amber-200/70 bg-black/10 p-4">
+									<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+										<div>
+											<p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-100/90">Session state</p>
+											<h3 className="mt-2 text-xl font-black uppercase tracking-tight">Planned but not executed</h3>
+										</div>
+										<button
+											type="button"
+											onClick={handleExecuteWorkout}
+											className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-slate-800"
+										>
+											Execute workout <ArrowRight size={16} />
+										</button>
+									</div>
+								</div>
+							)}
 
 							{(selectedWorkout.description || selectedWorkout.notes) && (
 								<div className="mt-4 rounded-xl bg-black/20 p-4 text-sm leading-relaxed text-amber-50">
