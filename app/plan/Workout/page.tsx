@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowRight, Bike, CheckCircle2, ChevronLeft, Clock3, Dumbbell, Gauge, Play, Route, Target, TrendingUp, Waves } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useWorkout } from '../../context/WorkoutContext';
+import { useWorkoutOptional } from '../../context/WorkoutContext';
 import { supabase } from '../../supabase';
 
 type SportType = 'RUN' | 'CYCLE' | 'SWIM';
@@ -183,7 +183,8 @@ function getStoredWorkoutLogs(workoutId: string) {
 
 export default function WorkoutDetailPage() {
 	const router = useRouter();
-	const { session } = useWorkout();
+	const workoutContext = useWorkoutOptional();
+	const session = workoutContext?.session ?? null;
 	const [loading, setLoading] = useState(true);
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 	const [microcycle, setMicrocycle] = useState<MicrocycleView | null>(null);

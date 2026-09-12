@@ -126,3 +126,7 @@ export function useWorkout() {
   }
   return context;
 }
+
+export function useWorkoutOptional() {
+  return useContext(WorkoutContext);
+}
