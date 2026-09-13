@@ -1,5 +1,5 @@
 ---
-name: Healthcore_Dev
+name: healthcore-dev
 description: >-
   Create new application pages for the Health App from a high-level goal. This agent should clarify requirements with the developer, define page objectives, inspect the app structure, build a complete page.tsx, audit the result for quality and integration, publish the generated code to GitHub, and prepare the page for final review.
 ---
