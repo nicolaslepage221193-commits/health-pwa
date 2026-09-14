@@ -674,8 +674,17 @@ export default function CardioBuilderPage() {
 		return Math.round((ftpWatts || DEFAULT_FTP) * (value / 100));
 	}
 
-	function addSegment(type: SegmentType) {
-		setSegments((prev) => [...prev, defaultSegment(type, mode, ftp)]);
+	function addSegment(type: SegmentType, insertBeforeId?: string, insertAfter = false) {
+		setSegments((prev) => {
+			const nextSegment = defaultSegment(type, mode, ftp);
+			if (!insertBeforeId) return [...prev, nextSegment];
+
+			const insertIndex = prev.findIndex((segment) => segment.id === insertBeforeId);
+			if (insertIndex === -1) return [...prev, nextSegment];
+			const targetIndex = insertAfter ? insertIndex + 1 : insertIndex;
+
+			return [...prev.slice(0, targetIndex), nextSegment, ...prev.slice(targetIndex)];
+		});
 	}
 
 	function updateSegment(id: string, next: WorkoutSegment) {
@@ -707,7 +716,15 @@ export default function CardioBuilderPage() {
 
 		const activeData = active.data.current;
 		if (activeData?.fromPalette) {
-			addSegment(activeData.segmentType as SegmentType);
+			const droppedOnCanvas = over.id === 'canvas';
+			const droppedOnSequenceBlock = segments.some((segment) => segment.id === over.id);
+			if (droppedOnCanvas || droppedOnSequenceBlock) {
+				const activeRect = active.rect.current.translated;
+				const activeCenter = activeRect ? activeRect.top + activeRect.height / 2 : over.rect.top;
+				const overCenter = over.rect.top + over.rect.height / 2;
+				const insertAfter = !droppedOnCanvas && activeCenter > overCenter;
+				addSegment(activeData.segmentType as SegmentType, droppedOnCanvas ? undefined : String(over.id), insertAfter);
+			}
 			return;
 		}
 
