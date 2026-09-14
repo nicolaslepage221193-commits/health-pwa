@@ -266,8 +266,8 @@ function PaletteCard({ type }: { type: SegmentType }) {
 			{...listeners}
 			{...attributes}
 			style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
-			className={`cursor-grab active:cursor-grabbing select-none rounded-[1.5rem] border border-slate-300/50 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:border-emerald-300 hover:bg-white ${
-				isDragging ? 'opacity-40 z-50' : ''
+			className={`cursor-grab active:cursor-grabbing select-none rounded-[1.5rem] border border-slate-300/50 bg-white/75 p-4 transition hover:border-emerald-300 hover:bg-white ${
+				isDragging ? 'z-50 opacity-40 shadow-none' : 'shadow-[0_14px_40px_rgba(0,0,0,0.12)]'
 			}`}
 		>
 				<div className="flex items-center gap-2 text-sm font-black uppercase tracking-tight text-slate-900">
@@ -978,7 +978,7 @@ export default function CardioBuilderPage() {
 
 				<DragOverlay>
 					{activeDragType && (
-						<div className="rounded-2xl border border-blue-300 bg-white p-3 shadow-lg">
+						<div className="rounded-2xl border border-blue-300 bg-white p-3 shadow-none">
 							<div className="flex items-center gap-2 font-bold text-sm text-slate-700">
 								{SEGMENT_META[activeDragType].icon}
 								{SEGMENT_META[activeDragType].label}
