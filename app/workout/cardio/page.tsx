@@ -1,10 +1,11 @@
 'use client';
 
-import { JSX, useEffect, useMemo, useState } from 'react';
+import { Fragment, JSX, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
 	DndContext,
 	DragEndEvent,
+	DragOverEvent,
 	DragOverlay,
 	DragStartEvent,
 	PointerSensor,
@@ -267,7 +268,7 @@ function PaletteCard({ type }: { type: SegmentType }) {
 			{...attributes}
 			style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
 			className={`cursor-grab active:cursor-grabbing select-none rounded-[1.5rem] border border-slate-300/50 bg-white/75 p-4 transition hover:border-emerald-300 hover:bg-white ${
-				isDragging ? 'z-50 opacity-40 shadow-none' : 'shadow-[0_14px_40px_rgba(0,0,0,0.12)]'
+				isDragging ? 'pointer-events-none opacity-0 shadow-none' : 'shadow-[0_14px_40px_rgba(0,0,0,0.12)]'
 			}`}
 		>
 				<div className="flex items-center gap-2 text-sm font-black uppercase tracking-tight text-slate-900">
@@ -298,6 +299,14 @@ function Canvas({ children, isEmpty }: { children: React.ReactNode; isEmpty: boo
 				</div>
 			)}
 			{children}
+		</div>
+	);
+}
+
+function DropPreview() {
+	return (
+		<div className="flex min-h-16 items-center justify-center rounded-[1.5rem] border-2 border-dashed border-emerald-500 bg-emerald-50/60 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700">
+			Drop block here
 		</div>
 	);
 }
@@ -584,6 +593,7 @@ export default function CardioBuilderPage() {
 	const [description, setDescription] = useState('');
 	const [segments, setSegments] = useState<WorkoutSegment[]>([]);
 	const [activeDragType, setActiveDragType] = useState<SegmentType | null>(null);
+	const [previewInsertIndex, setPreviewInsertIndex] = useState<number | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [saveOk, setSaveOk] = useState(false);
@@ -706,12 +716,42 @@ export default function CardioBuilderPage() {
 
 	function handleDragStart(event: DragStartEvent) {
 		const data = event.active.data.current;
-		if (data?.fromPalette) setActiveDragType(data.segmentType as SegmentType);
+		if (data?.fromPalette) {
+			setActiveDragType(data.segmentType as SegmentType);
+			setPreviewInsertIndex(segments.length);
+		}
+	}
+
+	function handleDragOver(event: DragOverEvent) {
+		if (!activeDragType) return;
+
+		const { active, over } = event;
+		if (!over) {
+			setPreviewInsertIndex(null);
+			return;
+		}
+
+		if (over.id === 'canvas') {
+			setPreviewInsertIndex(segments.length);
+			return;
+		}
+
+		const hoveredIndex = segments.findIndex((segment) => segment.id === over.id);
+		if (hoveredIndex === -1) {
+			setPreviewInsertIndex(null);
+			return;
+		}
+
+		const activeRect = active.rect.current.translated;
+		const activeCenter = activeRect ? activeRect.top + activeRect.height / 2 : over.rect.top;
+		const overCenter = over.rect.top + over.rect.height / 2;
+		setPreviewInsertIndex(hoveredIndex + (activeCenter > overCenter ? 1 : 0));
 	}
 
 	function handleDragEnd(event: DragEndEvent) {
 		const { active, over } = event;
 		setActiveDragType(null);
+		setPreviewInsertIndex(null);
 		if (!over) return;
 
 		const activeData = active.data.current;
@@ -899,7 +939,13 @@ export default function CardioBuilderPage() {
 				</div>
 			</div>
 
-			<DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+			<DndContext
+				sensors={sensors}
+				collisionDetection={closestCenter}
+				onDragStart={handleDragStart}
+				onDragOver={handleDragOver}
+				onDragEnd={handleDragEnd}
+			>
 				<div className="space-y-6 rounded-[2rem] bg-[#c4ced6] p-5 text-slate-900 sm:p-6">
 					{/* Palette */}
 					<div>
@@ -926,18 +972,22 @@ export default function CardioBuilderPage() {
 						<div>
 							<p className="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Sequence</p>
 							<SortableContext items={segments.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-								<Canvas isEmpty={segments.length === 0}>
+								<Canvas isEmpty={segments.length === 0 && !activeDragType}>
+									{activeDragType && previewInsertIndex === 0 && <DropPreview />}
 									{segments.map((seg) => (
-										<SegmentCard
-											key={seg.id}
-											segment={seg}
-											mode={mode}
-											ftp={ftp}
-											onChange={(next) => updateSegment(seg.id, next)}
-											onRemove={() => removeSegment(seg.id)}
-											onDuplicate={() => duplicateSegment(seg.id)}
-										/>
+										<Fragment key={seg.id}>
+											{activeDragType && previewInsertIndex === segments.findIndex((item) => item.id === seg.id) && <DropPreview />}
+											<SegmentCard
+												segment={seg}
+												mode={mode}
+												ftp={ftp}
+												onChange={(next) => updateSegment(seg.id, next)}
+												onRemove={() => removeSegment(seg.id)}
+												onDuplicate={() => duplicateSegment(seg.id)}
+											/>
+										</Fragment>
 									))}
+									{activeDragType && previewInsertIndex === segments.length && <DropPreview />}
 								</Canvas>
 							</SortableContext>
 						</div>
