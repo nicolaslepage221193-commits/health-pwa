@@ -52,6 +52,9 @@ interface WorkoutSegment {
 	label: string;
 	durationSec: number; // work duration for INTERVAL, total duration otherwise
 	intensityValue: number; // ignored for FREE
+	rampMinWatts?: number; // WARMUP and COOLDOWN only
+	rampMaxWatts?: number; // WARMUP and COOLDOWN only
+	rampStepWatts?: number; // WARMUP and COOLDOWN only
 	repeats?: number; // INTERVAL only
 	restDurationSec?: number; // INTERVAL only
 	restIntensityValue?: number; // INTERVAL only
@@ -90,6 +93,7 @@ const PALETTE_ORDER: SegmentType[] = ['WARMUP', 'STEADY', 'INTERVAL', 'FREE', 'C
 
 const DEFAULT_FTP = 200;
 const FREE_RIDE_ASSUMED_PCT = 65; // used only to approximate TSS for unstructured blocks
+const MIN_RAMP_STEP_WATTS = 5;
 
 // ---------- Helpers ----------
 
@@ -102,7 +106,16 @@ function defaultSegment(type: SegmentType, mode: IntensityMode, ftp: number): Wo
 
 	switch (type) {
 		case 'WARMUP':
-			return { id: uid(), type, label: SEGMENT_META.WARMUP.label, durationSec: 600, intensityValue: pctToValue(55) };
+			return {
+				id: uid(),
+				type,
+				label: SEGMENT_META.WARMUP.label,
+				durationSec: 600,
+				intensityValue: pctToValue(55),
+				rampMinWatts: Math.round((ftp || DEFAULT_FTP) * 0.5),
+				rampMaxWatts: Math.round((ftp || DEFAULT_FTP) * 0.75),
+				rampStepWatts: MIN_RAMP_STEP_WATTS,
+			};
 		case 'STEADY':
 			return { id: uid(), type, label: SEGMENT_META.STEADY.label, durationSec: 1200, intensityValue: pctToValue(75) };
 		case 'INTERVAL':
@@ -119,7 +132,16 @@ function defaultSegment(type: SegmentType, mode: IntensityMode, ftp: number): Wo
 		case 'FREE':
 			return { id: uid(), type, label: SEGMENT_META.FREE.label, durationSec: 1800, intensityValue: 0 };
 		case 'COOLDOWN':
-			return { id: uid(), type, label: SEGMENT_META.COOLDOWN.label, durationSec: 300, intensityValue: pctToValue(50) };
+			return {
+				id: uid(),
+				type,
+				label: SEGMENT_META.COOLDOWN.label,
+				durationSec: 300,
+				intensityValue: pctToValue(50),
+				rampMinWatts: Math.round((ftp || DEFAULT_FTP) * 0.5),
+				rampMaxWatts: Math.round((ftp || DEFAULT_FTP) * 0.75),
+				rampStepWatts: MIN_RAMP_STEP_WATTS,
+			};
 	}
 }
 
@@ -163,7 +185,9 @@ interface ChartBlock {
 function buildChartBlocks(segments: WorkoutSegment[], mode: IntensityMode, ftp: number): ChartBlock[] {
 	const blocks: ChartBlock[] = [];
 	segments.forEach((seg) => {
-		if (seg.type === 'INTERVAL') {
+		if (seg.type === 'WARMUP' || seg.type === 'COOLDOWN') {
+			blocks.push(...buildRampBlocks(seg, ftp));
+		} else if (seg.type === 'INTERVAL') {
 			const repeats = seg.repeats ?? 1;
 			for (let i = 0; i < repeats; i++) {
 				blocks.push({ key: `${seg.id}-work-${i}`, durationSec: seg.durationSec, pct: toFtpPercent(seg.intensityValue, mode, ftp), isFree: false });
@@ -203,6 +227,30 @@ function secondsToMinutes(sec: number): number {
 	return Math.round((sec / 60) * 100) / 100;
 }
 
+function getRampWatts(segment: WorkoutSegment, ftp: number) {
+	const baseFtp = ftp || DEFAULT_FTP;
+	const minWatts = Math.max(0, segment.rampMinWatts ?? Math.round(baseFtp * 0.5));
+	const maxWatts = Math.max(minWatts, segment.rampMaxWatts ?? Math.round(baseFtp * 0.75));
+	const stepWatts = Math.max(MIN_RAMP_STEP_WATTS, segment.rampStepWatts ?? MIN_RAMP_STEP_WATTS);
+	return { minWatts, maxWatts, stepWatts };
+}
+
+function buildRampBlocks(segment: WorkoutSegment, ftp: number): ChartBlock[] {
+	const { minWatts, maxWatts, stepWatts } = getRampWatts(segment, ftp);
+	const values: number[] = [];
+	for (let watts = minWatts; watts < maxWatts; watts += stepWatts) values.push(watts);
+	values.push(maxWatts);
+	if (segment.type === 'COOLDOWN') values.reverse();
+
+	const durationSec = segment.durationSec / values.length;
+	return values.map((watts, index) => ({
+		key: `${segment.id}-ramp-${index}`,
+		durationSec,
+		pct: toFtpPercent(watts, 'WATTS', ftp),
+		isFree: false,
+	}));
+}
+
 // ---------- Draggable palette item ----------
 
 function PaletteCard({ type }: { type: SegmentType }) {
@@ -218,15 +266,15 @@ function PaletteCard({ type }: { type: SegmentType }) {
 			{...listeners}
 			{...attributes}
 			style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined }}
-			className={`cursor-grab active:cursor-grabbing select-none rounded-2xl border border-slate-200 bg-white p-3 shadow-sm hover:border-blue-300 hover:shadow-md transition ${
+			className={`cursor-grab active:cursor-grabbing select-none rounded-[1.5rem] border border-slate-300/50 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)] transition hover:border-emerald-300 hover:bg-white ${
 				isDragging ? 'opacity-40 z-50' : ''
 			}`}
 		>
-			<div className="flex items-center gap-2 font-bold text-sm text-slate-700">
+				<div className="flex items-center gap-2 text-sm font-black uppercase tracking-tight text-slate-900">
 				<span className={`text-${meta.color}-500`}>{meta.icon}</span>
 				{meta.label}
 			</div>
-			<p className="mt-1 text-xs text-slate-400 leading-snug">{meta.description}</p>
+			<p className="mt-1 text-xs leading-snug text-slate-600">{meta.description}</p>
 		</div>
 	);
 }
@@ -238,12 +286,12 @@ function Canvas({ children, isEmpty }: { children: React.ReactNode; isEmpty: boo
 	return (
 		<div
 			ref={setNodeRef}
-			className={`min-h-[220px] rounded-2xl border-2 border-dashed p-3 space-y-3 transition-colors ${
-				isOver ? 'border-blue-400 bg-blue-50/50' : 'border-slate-200 bg-slate-50/40'
+			className={`min-h-[220px] space-y-3 rounded-[1.75rem] border-2 border-dashed p-4 transition-colors ${
+				isOver ? 'border-emerald-500 bg-emerald-50/60' : 'border-slate-400/60 bg-slate-900/10'
 			}`}
 		>
 			{isEmpty && (
-				<div className="flex h-40 flex-col items-center justify-center text-center text-slate-400">
+				<div className="flex h-40 flex-col items-center justify-center text-center text-slate-600">
 					<Plus size={22} className="mb-2" />
 					<p className="text-sm font-semibold">Drag a block here to start building</p>
 					<p className="text-xs">Warm-up, Zone, Intervals, Free effort, Cool-down</p>
@@ -287,7 +335,7 @@ function SegmentCard({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${isDragging ? 'opacity-50' : ''}`}
+			className={`rounded-[1.75rem] border border-slate-300/60 bg-white/85 shadow-[0_14px_40px_rgba(0,0,0,0.12)] ${isDragging ? 'opacity-50' : ''}`}
 		>
 			<div className="flex items-center gap-2 p-3">
 				<button
@@ -336,7 +384,7 @@ function SegmentCard({
 			</div>
 
 			{expanded && (
-				<div className="grid grid-cols-2 gap-3 border-t border-slate-100 p-3 sm:grid-cols-4">
+				<div className="grid grid-cols-2 gap-3 border-t border-slate-300/40 p-4 sm:grid-cols-4">
 					{segment.type === 'INTERVAL' ? (
 						<>
 							<Field label="Repeats">
@@ -345,7 +393,7 @@ function SegmentCard({
 									min={1}
 									value={segment.repeats ?? 1}
 									onChange={(e) => onChange({ ...segment, repeats: Math.max(1, Number(e.target.value)) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 							<Field label="Work (min)">
@@ -355,7 +403,7 @@ function SegmentCard({
 									step={0.25}
 									value={secondsToMinutes(segment.durationSec)}
 									onChange={(e) => onChange({ ...segment, durationSec: minutesToSeconds(Number(e.target.value)) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 							<Field label={`Work (${unitLabel})`}>
@@ -364,7 +412,7 @@ function SegmentCard({
 									min={0}
 									value={segment.intensityValue}
 									onChange={(e) => onChange({ ...segment, intensityValue: Number(e.target.value) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 							<Field label="Rest (min)">
@@ -374,7 +422,7 @@ function SegmentCard({
 									step={0.25}
 									value={secondsToMinutes(segment.restDurationSec || 0)}
 									onChange={(e) => onChange({ ...segment, restDurationSec: minutesToSeconds(Number(e.target.value)) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 							<Field label={`Rest (${unitLabel})`}>
@@ -383,7 +431,7 @@ function SegmentCard({
 									min={0}
 									value={segment.restIntensityValue || 0}
 									onChange={(e) => onChange({ ...segment, restIntensityValue: Number(e.target.value) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 						</>
@@ -395,9 +443,61 @@ function SegmentCard({
 								step={0.5}
 								value={secondsToMinutes(segment.durationSec)}
 								onChange={(e) => onChange({ ...segment, durationSec: minutesToSeconds(Number(e.target.value)) })}
-								className="input"
+								className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 							/>
 						</Field>
+					) : segment.type === 'WARMUP' || segment.type === 'COOLDOWN' ? (
+						<>
+							<Field label="Duration (min)">
+								<input
+									type="number"
+									min={0}
+									step={0.25}
+									value={secondsToMinutes(segment.durationSec)}
+									onChange={(e) => onChange({ ...segment, durationSec: minutesToSeconds(Number(e.target.value)) })}
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
+								/>
+							</Field>
+							<Field label="Minimum (W)">
+								<input
+									type="number"
+									min={0}
+									step={5}
+									value={getRampWatts(segment, ftp).minWatts}
+									onChange={(e) => {
+										const value = Math.max(0, Number(e.target.value));
+										onChange({ ...segment, rampMinWatts: Math.min(value, getRampWatts(segment, ftp).maxWatts) });
+									}}
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
+								/>
+							</Field>
+							<Field label="Maximum (W)">
+								<input
+									type="number"
+									min={0}
+									step={5}
+									value={getRampWatts(segment, ftp).maxWatts}
+									onChange={(e) => {
+										const value = Math.max(0, Number(e.target.value));
+										onChange({ ...segment, rampMaxWatts: Math.max(value, getRampWatts(segment, ftp).minWatts) });
+									}}
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
+								/>
+							</Field>
+							<Field label="Step (W)">
+								<input
+									type="number"
+									min={MIN_RAMP_STEP_WATTS}
+									step={5}
+									value={getRampWatts(segment, ftp).stepWatts}
+									onChange={(e) => onChange({ ...segment, rampStepWatts: Math.max(MIN_RAMP_STEP_WATTS, Number(e.target.value)) })}
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
+								/>
+							</Field>
+							<p className="col-span-2 self-center text-xs text-slate-400 sm:col-span-4">
+								{segment.type === 'WARMUP' ? 'Ascending ramp' : 'Descending ramp'} from minimum to maximum watts.
+							</p>
+						</>
 					) : (
 						<>
 							<Field label="Duration (min)">
@@ -407,7 +507,7 @@ function SegmentCard({
 									step={0.25}
 									value={secondsToMinutes(segment.durationSec)}
 									onChange={(e) => onChange({ ...segment, durationSec: minutesToSeconds(Number(e.target.value)) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 							<Field label={`Intensity (${unitLabel})`}>
@@ -416,7 +516,7 @@ function SegmentCard({
 									min={0}
 									value={segment.intensityValue}
 									onChange={(e) => onChange({ ...segment, intensityValue: Number(e.target.value) })}
-									className="input"
+									className="w-full rounded-xl border border-slate-300/70 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50"
 								/>
 							</Field>
 						</>
@@ -710,38 +810,24 @@ export default function CardioBuilderPage() {
 	}
 
 	return (
-		<div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-			<style jsx global>{`
-				.input {
-					border-radius: 0.5rem;
-					border: 1px solid rgb(226 232 240);
-					padding: 0.375rem 0.5rem;
-					font-size: 0.875rem;
-					font-weight: 600;
-					color: rgb(51 65 85);
-				}
-				.input:focus {
-					outline: none;
-					border-color: rgb(147 197 253);
-				}
-			`}</style>
-
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+		<div className="min-h-screen bg-[linear-gradient(to_bottom_right,#3b577e,#539974)] text-slate-100">
+			<div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-40 pt-8 sm:px-6">
+				<div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[2rem] border border-slate-300/40 bg-transparent p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
 				<div>
-					<p className="text-xs font-black uppercase tracking-widest text-blue-500">Workout Builder</p>
-					<h1 className="text-2xl font-black text-slate-800">Build a Cardio Workout</h1>
-					<p className="text-sm text-slate-400">Drag blocks together, tune the numbers, save it to your library.</p>
+					<p className="text-[11px] font-black uppercase tracking-[0.32em] text-white">Workout Builder</p>
+					<h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">Build a Cardio Workout</h1>
+					<p className="mt-1 text-sm text-slate-200">Drag blocks together, tune the numbers, save it to your library.</p>
 				</div>
 				<Link
 					href="/workout/library"
-					className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-blue-300 hover:text-blue-600"
+					className="rounded-full border border-white/60 bg-transparent px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:border-emerald-300 hover:text-emerald-200"
 				>
 					Back to Library
 				</Link>
 			</div>
 
 			{/* Activity + FTP bar */}
-			<div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+			<div className="mb-6 flex flex-wrap items-center gap-4 rounded-[2rem] border border-slate-300/40 bg-transparent p-5">
 				<div className="flex items-center gap-2">
 					{SPORT_OPTIONS.map((opt) => (
 						<button
@@ -749,7 +835,7 @@ export default function CardioBuilderPage() {
 							type="button"
 							onClick={() => setSport(opt.value)}
 							className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide transition ${
-								sport === opt.value ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+									sport === opt.value ? 'bg-emerald-500 text-slate-950 shadow' : 'bg-slate-900/20 text-white hover:bg-slate-900/30'
 							}`}
 						>
 							{opt.icon}
@@ -758,14 +844,14 @@ export default function CardioBuilderPage() {
 					))}
 				</div>
 
-				<div className="h-8 w-px bg-slate-100" />
+				<div className="h-8 w-px bg-white/30" />
 
-				<div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+				<div className="flex items-center gap-1 rounded-xl bg-slate-900/20 p-1">
 					<button
 						type="button"
 						onClick={() => toggleMode('FTP_PERCENT')}
 						className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
-							mode === 'FTP_PERCENT' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'
+							mode === 'FTP_PERCENT' ? 'bg-emerald-400 text-slate-950 shadow' : 'text-slate-200'
 						}`}
 					>
 						% FTP
@@ -774,7 +860,7 @@ export default function CardioBuilderPage() {
 						type="button"
 						onClick={() => toggleMode('WATTS')}
 						className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
-							mode === 'WATTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-400'
+							mode === 'WATTS' ? 'bg-emerald-400 text-slate-950 shadow' : 'text-slate-200'
 						}`}
 					>
 						Watts
@@ -789,35 +875,31 @@ export default function CardioBuilderPage() {
 						value={ftpDraft}
 						onChange={(e) => setFtpDraft(e.target.value)}
 						onBlur={saveFtp}
-						className="input w-24"
+						className="w-24 rounded-xl border border-white/50 bg-white/80 px-2 py-1.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200/50"
 					/>
-					<span className="text-xs font-semibold text-slate-400">watts</span>
-					{ftpSaving && <Loader2 size={14} className="animate-spin text-slate-300" />}
+					<span className="text-xs font-semibold text-slate-200">watts</span>
+					{ftpSaving && <Loader2 size={14} className="animate-spin text-emerald-200" />}
 				</div>
 			</div>
 
 			<DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-				<div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
+				<div className="space-y-6 rounded-[2rem] bg-[#c4ced6] p-5 text-slate-900 sm:p-6">
 					{/* Palette */}
-					<div className="space-y-3">
-						<p className="text-xs font-black uppercase tracking-widest text-slate-400">Blocks</p>
-						{PALETTE_ORDER.map((type) => (
-							<PaletteCard key={type} type={type} />
-						))}
-						<button
-							type="button"
-							onClick={() => addSegment('WARMUP')}
-							className="hidden"
-							aria-hidden
-						/>
+					<div>
+						<p className="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Blocks</p>
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+							{PALETTE_ORDER.map((type) => (
+								<PaletteCard key={type} type={type} />
+							))}
+						</div>
 					</div>
 
 					{/* Canvas + chart + save */}
 					<div className="space-y-6">
 						<div>
-							<p className="mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Timeline</p>
+							<p className="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Timeline</p>
 							<WorkoutChart segments={segments} mode={mode} ftp={ftp} />
-							<div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+							<div className="mt-3 flex flex-wrap gap-4 text-xs font-black uppercase tracking-wide text-slate-700">
 								<span>Duration: {formatDuration(totals.totalSec)}</span>
 								<span>Avg Intensity: {Math.round(totals.avgPct)}% FTP</span>
 								<span className="flex items-center gap-1"><Flame size={14} className="text-orange-400" /> Est. TSS: {Math.round(totals.tss)}</span>
@@ -825,7 +907,7 @@ export default function CardioBuilderPage() {
 						</div>
 
 						<div>
-							<p className="mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Sequence</p>
+							<p className="mb-2 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Sequence</p>
 							<SortableContext items={segments.map((s) => s.id)} strategy={verticalListSortingStrategy}>
 								<Canvas isEmpty={segments.length === 0}>
 									{segments.map((seg) => (
@@ -844,21 +926,21 @@ export default function CardioBuilderPage() {
 						</div>
 
 						{/* Save form */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-							<p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">Save to Library</p>
+						<div className="rounded-[1.75rem] border border-slate-300/50 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)]">
+							<p className="mb-3 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Save to Library</p>
 							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 								<input
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
 									placeholder="Workout title (e.g. Sweet Spot 3x12)"
-									className="input sm:col-span-2"
+									className="rounded-xl border border-slate-300/70 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50 sm:col-span-2"
 								/>
 								<textarea
 									value={description}
 									onChange={(e) => setDescription(e.target.value)}
 									placeholder="Notes / execution instructions (optional)"
 									rows={2}
-									className="input sm:col-span-2"
+									className="rounded-xl border border-slate-300/70 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200/50 sm:col-span-2"
 								/>
 							</div>
 							<div className="mt-3 flex items-center justify-between">
@@ -867,7 +949,7 @@ export default function CardioBuilderPage() {
 									type="button"
 									onClick={handleSave}
 									disabled={saving}
-									className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white shadow hover:bg-blue-700 disabled:opacity-50"
+									className="flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-950 shadow transition hover:bg-emerald-400 disabled:opacity-50"
 								>
 									{saving ? <Loader2 size={16} className="animate-spin" /> : saveOk ? <Check size={16} /> : <Save size={16} />}
 									{saveOk ? 'Saved' : 'Save Workout'}
@@ -890,16 +972,16 @@ export default function CardioBuilderPage() {
 			</DndContext>
 
 			{/* Saved custom workouts */}
-			<div className="mt-10">
-				<p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">Your Custom Workouts</p>
+			<div className="mt-6 rounded-[2rem] bg-[#c4ced6] p-5 text-slate-900 sm:p-6">
+				<p className="mb-3 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600">Your Custom Workouts</p>
 				{loadingSaved ? (
 					<div className="flex items-center gap-2 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> Loading…</div>
 				) : savedWorkouts.length === 0 ? (
 					<p className="text-sm text-slate-400">No custom workouts saved yet.</p>
 				) : (
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						{savedWorkouts.map((row) => (
-							<div key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+							<div key={row.id} className="rounded-[1.75rem] border border-slate-300/50 bg-white/75 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.12)]">
 								<div className="flex items-start justify-between gap-2">
 									<div>
 										<p className="font-bold text-slate-700">{row.title}</p>
@@ -919,7 +1001,7 @@ export default function CardioBuilderPage() {
 								<button
 									type="button"
 									onClick={() => loadSaved(row)}
-									className="mt-3 w-full rounded-lg border border-slate-200 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 hover:border-blue-300 hover:text-blue-600"
+										className="mt-3 w-full rounded-full border border-slate-400/60 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700"
 								>
 									Load into Builder
 								</button>
@@ -928,6 +1010,7 @@ export default function CardioBuilderPage() {
 					</div>
 				)}
 			</div>
-		</div>
+			</div>
+			</div>
 	);
 }
